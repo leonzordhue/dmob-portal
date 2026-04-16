@@ -487,9 +487,12 @@ td.mono{font-family:'Courier New',monospace;font-size:.72rem;color:var(--cinza-2
       </div>
 
       <div class="table-card">
-        <div class="table-toolbar">
+        <div class="table-toolbar" style="flex-wrap:wrap;gap:.6rem">
           <div class="table-toolbar-title">🌿 Tabela de Ramais</div>
-          <div class="search-box">🔍 <input type="text" id="search-ram" placeholder="Buscar município, ramal, situação…" oninput="filtrarTabela('ram')"></div>
+          <select id="filter-ram-mun" onchange="filtrarRamais()" style="border:1px solid var(--borda);border-radius:8px;padding:.4rem .8rem;font-size:.75rem;font-family:var(--font);color:var(--cinza-1);background:var(--branco);cursor:pointer;outline:none">
+            <option value="">📍 Todos os municípios</option>
+          </select>
+          <div class="search-box">🔍 <input type="text" id="search-ram" placeholder="Buscar ramal, situação, código…" oninput="filtrarRamais()"></div>
           <button class="btn-sm ouro" onclick="exportarCSVSec('ram')">⬇️ CSV</button>
         </div>
         <div id="table-ram-wrap"><div class="loader-wrap"><div class="loader-ring"></div><div class="loader-txt">Carregando ramais…</div></div></div>
@@ -569,11 +572,9 @@ td.mono{font-family:'Courier New',monospace;font-size:.72rem;color:var(--cinza-2
         <div class="sec-desc">Mapeamento dos terminais flutuantes e hidroviários sob gestão da SEINFRA/AM — municípios atendidos, comunidades, processos administrativos e datas de assinatura.</div>
       </div>
 
-      <div class="kpi-row cols-4" id="kpi-term"></div>
-
-      <div class="chart-grid g2" style="margin-top:1.2rem">
+      <div class="chart-grid g2" style="margin-bottom:1.2rem">
         <div class="chart-card">
-          <div class="cc-head"><div><div class="cc-title">Top 10 — Municípios com Mais Terminais</div><div class="cc-sub">Quantidade de terminais fluviais por município</div></div><div class="cc-badge verde">Distribuição</div></div>
+          <div class="cc-head"><div><div class="cc-title">Municípios com Mais Terminais</div><div class="cc-sub">Top 8 por quantidade de terminais fluviais</div></div><div class="cc-badge verde">Distribuição</div></div>
           <div class="chart-wrap tall"><canvas id="chart-term-mun"></canvas></div>
         </div>
         <div class="chart-card">
@@ -582,14 +583,22 @@ td.mono{font-family:'Courier New',monospace;font-size:.72rem;color:var(--cinza-2
         </div>
       </div>
 
-      <div class="table-card">
-        <div class="table-toolbar">
-          <div class="table-toolbar-title">⚓ Terminais Fluviais</div>
-          <div class="search-box">🔍 <input type="text" id="search-term" placeholder="Buscar município, comunidade, processo…" oninput="filtrarTabela('term')"></div>
-          <button class="btn-sm ouro" onclick="exportarCSVSec('term')">⬇️ CSV</button>
+      <div class="table-toolbar" style="background:var(--branco);border:1px solid var(--borda);border-radius:12px;margin-bottom:1.2rem">
+        <div class="table-toolbar-title">⚓ Terminais Fluviais</div>
+        <div class="search-box">🔍 <input type="text" id="search-term" placeholder="Buscar município, comunidade…" oninput="filtrarTerminais()"></div>
+        <button class="btn-sm ouro" onclick="exportarCSVSec('term')">⬇️ CSV</button>
+      </div>
+      <div id="term-cards-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin-bottom:1.5rem">
+        <div class="loader-wrap"><div class="loader-ring"></div><div class="loader-txt">Carregando terminais…</div></div>
+      </div>
+      <!-- Modal info terminal -->
+      <div id="term-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,29,72,.55);z-index:500;backdrop-filter:blur(4px)" onclick="fecharModalTerm()"></div>
+      <div id="term-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:501;background:var(--branco);border-radius:16px;box-shadow:0 24px 80px rgba(0,45,114,.25);width:min(500px,90vw);max-height:80vh;overflow-y:auto">
+        <div style="background:var(--azul);padding:1.2rem 1.5rem;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:1rem;font-weight:800;color:var(--branco)" id="term-modal-title">Terminal</div>
+          <button onclick="fecharModalTerm()" style="background:rgba(255,255,255,.15);border:none;color:var(--branco);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center">×</button>
         </div>
-        <div id="table-term-wrap"><div class="loader-wrap"><div class="loader-ring"></div><div class="loader-txt">Carregando terminais…</div></div></div>
-        <div class="pagination" id="pag-term"><span id="pag-term-info">—</span><div class="page-btns" id="pag-term-btns"></div></div>
+        <div id="term-modal-body" style="padding:1.5rem"></div>
       </div>
     </div>
 
@@ -664,30 +673,51 @@ const DB = {
 };
 
 // ── L2: CSV PARSER ──────────────────────────────────────────────────────────
+function parseCSVLine(line) {
+  const res = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { res.push(cur); cur = ''; }
+    else { cur += c; }
+  }
+  res.push(cur);
+  return res;
+}
+function normalizeHeader(h) {
+  return h.trim().replace(/^["'\s]+|["'\s]+$/g,'')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9_]/g,'_').replace(/__+/g,'_').replace(/^_|_$/g,'');
+}
 function parseCSV(text) {
-  const lines = text.split('\n').filter(l => l.trim());
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
   if (!lines.length) return [];
-  const headers = parseCSVLine(lines[0]).map(h => h.replace(/^["'\s]+|["'\s]+$/g,'').trim());
+  const headers = parseCSVLine(lines[0]).map(normalizeHeader);
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
     const vals = parseCSVLine(lines[i]);
     if (vals.every(v => !v.trim())) continue;
     const obj = {};
-    headers.forEach((h, idx) => { obj[h] = (vals[idx] || '').replace(/^["]+|["]+$/g,'').trim(); });
+    headers.forEach((h, idx) => { obj[h] = (vals[idx] || '').trim().replace(/^"|"$/g,''); });
     rows.push(obj);
   }
   return rows;
 }
-function parseCSVLine(line) {
-  const result = []; let cur = ''; let inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else { inQ = !inQ; } }
-    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
-    else { cur += c; }
+// Extrai código AM/BR limpo de qualquer string
+function extractCodRod(s) {
+  if (!s) return '';
+  const m = String(s).match(/\b(AM|BR|PA|MT|RR|AC|AP|TO)-?\s*(\d{2,3})\b/i);
+  return m ? (m[1].toUpperCase() + '-' + m[2].padStart(3,'0')) : '';
+}
+// detectCol: busca fuzzy em keys normalizadas
+function detectColVal(row, candidates) {
+  const keys = Object.keys(row);
+  for (const c of candidates) {
+    const found = keys.find(k => k.includes(c));
+    if (found !== undefined && row[found]) return row[found];
   }
-  result.push(cur);
-  return result;
+  return '';
 }
 
 // ── L3: FETCH ───────────────────────────────────────────────────────────────
@@ -707,8 +737,9 @@ function renderTable(containerId, data, page, cols) {
   const start = (page - 1) * ROWS_PER_PAGE;
   const slice = data.slice(start, start + ROWS_PER_PAGE);
   const displayCols = cols || Object.keys(data[0]);
+  const labelCol = c => c.replace(/_/g,' ').replace(/\b\w/g, l=>l.toUpperCase());
   let html = '<div style="overflow-x:auto"><table><thead><tr>';
-  displayCols.forEach(c => { html += `<th>${c}</th>`; });
+  displayCols.forEach(c => { html += `<th>${labelCol(c)}</th>`; });
   html += '</tr></thead><tbody>';
   slice.forEach(row => {
     html += '<tr>';
@@ -723,25 +754,35 @@ function renderTable(containerId, data, page, cols) {
 }
 
 function formatCell(col, val) {
-  if (!val || val === '—') return '<span style="color:var(--cinza-4)">—</span>';
+  if (!val || val === '—' || val.trim() === '') return '<span style="color:var(--cinza-4)">—</span>';
   const colL = col.toLowerCase();
-  if (colL.includes('jurisdi')) {
-    const c = val.toUpperCase() === 'ESTADUAL' ? 'azul' : 'ouro';
+  if (colL.includes('jurisdi') || colL.includes('jurisdic')) {
+    const c = val.toLowerCase().includes('estadual') ? 'azul' : 'ouro';
     return `<span class="pill ${c}">${val}</span>`;
   }
   if (colL.includes('situa')) {
     const v = val.toUpperCase();
     if (v.includes('CONCLU')) return `<span class="pill verde">${val}</span>`;
     if (v.includes('EM OBRA')) return `<span class="pill ouro">${val}</span>`;
-    if (v.includes('VISITA')) return `<span class="pill ciano" style="background:var(--ciano-lt);color:var(--ciano)">${val}</span>`;
+    if (v.includes('VISITA') && !v.includes('A VISITAR')) return `<span class="pill ciano" style="background:var(--ciano-lt);color:var(--ciano)">${val}</span>`;
     if (v.includes('EXTINT')) return `<span class="pill verm">${val}</span>`;
     return `<span class="pill cinza">${val}</span>`;
   }
-  if (colL.includes('opera')) {
+  if (colL === 'operacao' || colL === 'operação' || colL.includes('opera')) {
     return `<span class="pill verde">${val}</span>`;
   }
-  if (colL === 'rodovia' || colL === 'rod' || colL.includes('am-') || /^am\d/i.test(val)) {
+  if (colL === 'internacionalizacao' || colL.includes('intern')) {
+    return val && val.trim() && val !== '—' ? `<span class="pill roxo">${val}</span>` : '<span style="color:var(--cinza-4)">—</span>';
+  }
+  if (/^(am|br)-\d{3}$/i.test(val.trim())) {
     return `<strong style="color:var(--azul)">${val}</strong>`;
+  }
+  if (colL === 'icao' || colL === 'ciad' || colL === 'codigo_ser_snv' || colL === 'codigo') {
+    return `<span class="mono" style="font-weight:700;color:var(--azul-md)">${val}</span>`;
+  }
+  // Valores muito longos: truncar com tooltip
+  if (val.length > 80) {
+    return `<span title="${val.replace(/"/g,'&quot;')}" style="cursor:help">${val.slice(0,77)}…</span>`;
   }
   return val;
 }
@@ -908,70 +949,128 @@ async function initRodovias() {
     setKpi('badge-rod', data.length);
     document.getElementById('kg-rod').textContent = data.length;
 
+    // Planilha normalizada: codigo_ser_snv, rodovia, sentido, jurisdicao,
+    // km_inicial, km_final, extensao, unidade, regiao, inicio, final, faixa_de_dominio
+    // "rodovia" contem texto longo do trecho — extrair código AM/BR limpo
+    const getCod = r => {
+      // Tentar campo rodovia primeiro, depois codigo_ser_snv, depois varrer tudo
+      const candidates = [r['rodovia'], r['codigo_ser_snv'], r['codigo'], r['cod']];
+      for (const v of candidates) {
+        const c = extractCodRod(v || '');
+        if (c) return c;
+      }
+      // último recurso: varrer todos os campos
+      for (const v of Object.values(r)) {
+        const c = extractCodRod(String(v || ''));
+        if (c) return c;
+      }
+      return '';
+    };
+
+    const getExt = r => parseFloat((r['extensao'] || r['extensao_km'] || '0').replace(',','.')) || 0;
+    const getJur = r => r['jurisdicao'] || r['jurisdição'] || '';
+    const getReg = r => r['regiao'] || r['região'] || '';
+    const getIni = r => r['km_inicial'] || r['km_ini'] || r['inicio'] || '';
+    const getFim = r => r['km_final'] || r['km_fim'] || r['final'] || '';
+    const getSent= r => r['sentido'] || '';
+    const getFaixa=r=> r['faixa_de_dominio'] || r['faixa'] || '';
+    const getCodSNV = r => r['codigo_ser_snv'] || r['codigo'] || '';
+
     // KPIs
-    const estadual = data.filter(r => (r['JURISDIÇÃO']||'').toUpperCase().includes('ESTADUAL')).length;
-    const federal = data.filter(r => (r['JURISDIÇÃO']||'').toUpperCase().includes('FEDERAL')).length;
-    const rmm = data.filter(r => (r['REGIÃO']||'').toUpperCase().includes('RMM')).length;
+    const estadual = data.filter(r => getJur(r).toLowerCase().includes('estadual')).length;
+    const federal  = data.filter(r => getJur(r).toLowerCase().includes('federal')).length;
+    const rmm      = data.filter(r => getReg(r).toUpperCase().includes('RMM')).length;
     document.getElementById('kpi-rod').innerHTML = `
       <div class="kpi"><div class="kpi-header"><div class="kpi-label">Total de Trechos</div><div class="kpi-icon">📏</div></div><div class="kpi-value">${data.length}</div><div class="kpi-sub">segmentos cadastrados</div></div>
       <div class="kpi ouro"><div class="kpi-header"><div class="kpi-label">Trechos Estaduais</div><div class="kpi-icon">🏛️</div></div><div class="kpi-value">${estadual}</div><div class="kpi-sub">jurisdição estadual</div></div>
       <div class="kpi verde"><div class="kpi-header"><div class="kpi-label">Trechos Federais</div><div class="kpi-icon">🇧🇷</div></div><div class="kpi-value">${federal}</div><div class="kpi-sub">jurisdição federal</div></div>
-      <div class="kpi ciano"><div class="kpi-header"><div class="kpi-label">Trechos RMM</div><div class="kpi-icon">🏙️</div></div><div class="kpi-value">${rmm}</div><div class="kpi-sub">Região Metropolitana Manaus</div></div>`;
+      <div class="kpi ciano"><div class="kpi-header"><div class="kpi-label">Trechos RMM</div><div class="kpi-icon">🏙️</div></div><div class="kpi-value">${rmm}</div><div class="kpi-sub">Região Met. de Manaus</div></div>`;
 
-    // Charts
-    const jurMap = countBy(data, 'JURISDIÇÃO');
+    // Charts: jurisdição e região
+    const jurMap = {}; data.forEach(r => { const j = getJur(r)||'Sem info'; jurMap[j]=(jurMap[j]||0)+1; });
     makeDoughnut('chart-rod-juris', Object.keys(jurMap), Object.values(jurMap), { colors: [PALETTE.azul[0], PALETTE.ouro[0], PALETTE.multi[2]] });
-    const regMap = countBy(data, 'REGIÃO');
+    const regMap = {}; data.forEach(r => { const g = getReg(r)||'Sem info'; regMap[g]=(regMap[g]||0)+1; });
     makeDoughnut('chart-rod-regiao', Object.keys(regMap), Object.values(regMap));
 
-    // Extensão por rodovia
+    // Extensão por rodovia (código limpo AM/BR)
     const extMap = {};
     data.forEach(r => {
-      const rod = r['RODOVIA'] || r['ROD'] || Object.values(r)[1] || 'Desconhecida';
-      const ext = parseFloat((r['EXTENSÃO']||r['EXTENSAO']||'0').replace(',','.')) || 0;
-      extMap[rod] = (extMap[rod]||0) + ext;
+      const cod = getCod(r) || 'Outras';
+      extMap[cod] = (extMap[cod] || 0) + getExt(r);
     });
     const topExt = topN(extMap, 10);
-    makeBar('chart-rod-ext', topExt.map(e=>e[0]), topExt.map(e=>parseFloat(e[1].toFixed(2))), { horizontal: true, colors: PALETTE.multi.slice(0,10), unit:' km' });
+    makeBar('chart-rod-ext', topExt.map(e=>e[0]), topExt.map(e=>parseFloat(e[1].toFixed(2))),
+      { horizontal: true, colors: PALETTE.multi.slice(0,10), unit:' km' });
 
-    // Accordions por rodovia
+    // Accordions agrupados por código AM/BR limpo
     const rodMap = {};
     data.forEach(r => {
-      const rod = r['RODOVIA'] || r['ROD'] || Object.values(r)[1] || 'Desconhecida';
-      if (!rodMap[rod]) rodMap[rod] = [];
-      rodMap[rod].push(r);
+      const cod = getCod(r);
+      if (!cod) return; // ignora linhas sem código válido
+      if (!rodMap[cod]) rodMap[cod] = [];
+      rodMap[cod].push(r);
     });
-    const colsRod = Object.keys(data[0] || {});
+
+    const COLS_ROD = ['CÓDIGO SER/SNV','RODOVIA','SENTIDO','JURISDIÇÃO','KM INICIAL','KM FINAL','EXTENSÃO','UND','REGIÃO','INÍCIO','FINAL','FAIXA DE DOMÍNIO'];
+
     let accHtml = '';
-    Object.keys(rodMap).sort().forEach(rod => {
-      const trechos = rodMap[rod];
-      const totalExt = trechos.reduce((s,r) => s + (parseFloat((r['EXTENSÃO']||r['EXTENSAO']||'0').replace(',','.')) || 0), 0);
+    Object.keys(rodMap).sort().forEach(cod => {
+      const trechos = rodMap[cod];
+      const totalExt = trechos.reduce((s,r) => s + getExt(r), 0);
+      const iniTrecho = getIni(trechos[0]);
+      const fimTrecho = getFim(trechos[trechos.length-1]);
       accHtml += `
         <div class="accordion-group">
           <div class="accordion-head" onclick="toggleAcc(this)">
             <div class="acc-info">
-              <span class="acc-rod">${rod}</span>
-              <span class="acc-name">${trechos[0]['INÍCIO']||trechos[0]['INICIO']||''} → ${trechos[trechos.length-1]['FINAL']||''}</span>
+              <span class="acc-rod">${cod}</span>
+              ${iniTrecho||fimTrecho ? `<span class="acc-name">${iniTrecho ? 'KM '+iniTrecho : ''} ${fimTrecho ? '→ KM '+fimTrecho : ''}</span>` : ''}
             </div>
             <div class="acc-stats">
               <span class="acc-stat">${trechos.length} trecho${trechos.length>1?'s':''}</span>
-              <span class="acc-stat">${totalExt.toFixed(2)} km</span>
+              ${totalExt>0 ? `<span class="acc-stat">${totalExt.toFixed(2)} km</span>` : ''}
             </div>
             <div class="acc-chevron">▼</div>
           </div>
           <div class="accordion-body">
             <div style="overflow-x:auto">
-              <table><thead><tr>${colsRod.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>
-              ${trechos.map(r=>`<tr>${colsRod.map(c=>`<td>${formatCell(c,r[c]||'—')}</td>`).join('')}</tr>`).join('')}
-              </tbody></table>
+              <table>
+                <thead><tr>
+                  <th>CÓDIGO SER/SNV</th>
+                  <th>SENTIDO</th>
+                  <th>JURISDIÇÃO</th>
+                  <th>KM INICIAL</th>
+                  <th>KM FINAL</th>
+                  <th>EXTENSÃO</th>
+                  <th>REGIÃO</th>
+                  <th>INÍCIO</th>
+                  <th>FINAL</th>
+                  <th>FAIXA DE DOMÍNIO</th>
+                </tr></thead>
+                <tbody>
+                ${trechos.map(r => `<tr>
+                  <td class="mono">${getCodSNV(r)||'—'}</td>
+                  <td>${getSent(r)||'—'}</td>
+                  <td>${getJur(r) ? `<span class="pill ${getJur(r).toLowerCase().includes('estadual')?'azul':'ouro'}">${getJur(r)}</span>` : '—'}</td>
+                  <td>${getIni(r)||'—'}</td>
+                  <td>${getFim(r)||'—'}</td>
+                  <td>${getExt(r)>0?getExt(r).toFixed(2)+' km':'—'}</td>
+                  <td>${getReg(r)||'—'}</td>
+                  <td style="font-size:.72rem;max-width:150px">${r['inicio']||'—'}</td>
+                  <td style="font-size:.72rem;max-width:150px">${r['final']||'—'}</td>
+                  <td>${getFaixa(r)||'—'}</td>
+                </tr>`).join('')}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>`;
     });
-    document.getElementById('rod-accordions').innerHTML = accHtml;
+    document.getElementById('rod-accordions').innerHTML = accHtml || '<div class="empty-state"><div class="empty-icon">🛣️</div><div class="empty-text">Nenhum trecho com código AM/BR válido encontrado</div></div>';
 
   } catch(e) {
-    document.getElementById('rod-accordions').innerHTML = `<div class="error-box">⚠️ Erro: ${e.message}</div>`;
+    document.getElementById('rod-accordions').innerHTML = `<div class="error-box">⚠️ Erro ao carregar rodovias: ${e.message}</div>`;
+    console.error('[rodovias]', e);
   }
 }
 
@@ -1041,55 +1140,96 @@ async function initRamais() {
       makeBar('chart-ram-calha', cal.map(e=>e[0]), cal.map(e=>e[1]), { colors: PALETTE.multi.slice(0,8) });
     }
 
+    // Popular select de municípios
+    if (colMun) {
+      const muns = [...new Set(data.map(r => r[colMun]).filter(Boolean))].sort();
+      const sel = document.getElementById('filter-ram-mun');
+      if (sel) {
+        muns.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m; opt.textContent = m;
+          sel.appendChild(opt);
+        });
+      }
+    }
+
     renderSection('ram');
   } catch(e) {
     document.getElementById('table-ram-wrap').innerHTML = `<div class="error-box">⚠️ Erro: ${e.message}</div>`;
   }
 }
 
+function filtrarRamais() {
+  const q   = (document.getElementById('search-ram')?.value || '').toLowerCase();
+  const mun = document.getElementById('filter-ram-mun')?.value || '';
+  const keys = Object.keys(DB.ram[0] || {});
+  const colMun = keys.find(k => /munic/.test(k)) || keys[0];
+  DB.filtered.ram = DB.ram.filter(r => {
+    const matchMun = !mun || (colMun && r[colMun] === mun);
+    const matchQ   = !q   || Object.values(r).some(v => v.toLowerCase().includes(q));
+    return matchMun && matchQ;
+  });
+  DB.pages.ram = 1;
+  renderSection('ram');
+}
+
 // ── INIT VIÁRIO ──
 async function initViario() {
   try {
-    const data = await fetchSheet(SHEETS.viario);
+    const raw = await fetchSheet(SHEETS.viario);
+
+    // Filtrar SOMENTE viário urbano — excluir linhas com características de ramal/estrada rural
+    const isRural = r => {
+      const vals = Object.values(r).join(' ').toLowerCase();
+      return /\bramal\b|\bestrada\b|\bzona rural\b|\bcomunidade\b/.test(vals);
+    };
+    const data = raw.filter(r => !isRural(r) && Object.values(r).some(v => v && v.trim()));
+
     DB.via = data;
     DB.filtered.via = [...data];
     setKpi('badge-via', data.length);
     document.getElementById('kg-via').textContent = data.length;
 
     const keys = Object.keys(data[0] || {});
-    const colMun = keys.find(k => /munic/i.test(k)) || keys[0];
-    const colExt = keys.find(k => /exten/i.test(k));
+    const colMun  = keys.find(k => /munic/.test(k)) || keys[0];
+    const colRua  = keys.find(k => /rua|logr|via|nome|denom/.test(k));
+    const colExt  = keys.find(k => /exten|comprimento|metros|m_/.test(k));
+    const colSit  = keys.find(k => /situa|status|pav/.test(k));
+    const colAnno = keys.find(k => /ano|data|exerc/.test(k));
     COLS.via = keys;
 
-    const muns = new Set(data.map(r=>r[colMun]).filter(Boolean));
+    const muns = new Set(data.map(r => colMun?r[colMun]:'').filter(Boolean));
+
     document.getElementById('kpi-via').innerHTML = `
-      <div class="kpi"><div class="kpi-header"><div class="kpi-label">Total de Registros</div><div class="kpi-icon">📋</div></div><div class="kpi-value">${data.length}</div><div class="kpi-sub">obras viárias cadastradas</div></div>
+      <div class="kpi"><div class="kpi-header"><div class="kpi-label">Total de Registros</div><div class="kpi-icon">📋</div></div><div class="kpi-value">${data.length}</div><div class="kpi-sub">obras viárias urbanas</div></div>
       <div class="kpi ouro"><div class="kpi-header"><div class="kpi-label">Municípios com Viário</div><div class="kpi-icon">🏙️</div></div><div class="kpi-value">${muns.size}</div><div class="kpi-sub">de 62 municípios</div></div>
       <div class="kpi verde"><div class="kpi-header"><div class="kpi-label">Municípios Sem Registro</div><div class="kpi-icon">⚠️</div></div><div class="kpi-value">${62 - muns.size}</div><div class="kpi-sub">aguardam cadastramento</div></div>
       <div class="kpi ciano"><div class="kpi-header"><div class="kpi-label">Média por Município</div><div class="kpi-icon">📊</div></div><div class="kpi-value">${muns.size?(data.length/muns.size).toFixed(1):'—'}</div><div class="kpi-sub">obras por município atendido</div></div>`;
 
-    // Top 10 municípios
+    // Top 10 municípios por quantidade de obras
     if (colMun) {
-      const munMap = countBy(data, colMun);
-      const topMun = topN(munMap, 10);
-      makeBar('chart-via-top', topMun.map(e=>e[0]), topMun.map(e=>e[1]), { horizontal: true, colors: PALETTE.azul[0] });
+      const munMap = {}; data.forEach(r => { const v=r[colMun]||'Sem info'; munMap[v]=(munMap[v]||0)+1; });
+      const t = topN(munMap, 10);
+      makeBar('chart-via-top', t.map(e=>e[0]), t.map(e=>e[1]),
+        { horizontal: true, colors: PALETTE.azul[0] });
     }
 
-    // Rank extensão
+    // Ranking extensão
     if (colExt && colMun) {
       const extMap = {};
       data.forEach(r => {
         const m = r[colMun]||'Desconhecido';
-        const e = parseFloat((r[colExt]||'0').replace(',','.'))||0;
-        extMap[m] = (extMap[m]||0) + e;
+        const v = parseFloat((r[colExt]||'0').replace(',','.'))||0;
+        extMap[m] = (extMap[m]||0) + v;
       });
-      const topExt = topN(extMap,5).map(([l,v])=>({label:l,value:v,unit:'m'}));
-      renderRankList('rank-via-ext', topExt, topExt[0]?.value||1, 'verde');
+      const t = topN(extMap, 5).map(([l,v]) => ({label:l, value:Math.round(v), unit:'m'}));
+      renderRankList('rank-via-ext', t, t[0]?.value||1, 'verde');
     }
 
     renderSection('via');
   } catch(e) {
-    document.getElementById('table-via-wrap').innerHTML = `<div class="error-box">⚠️ Erro: ${e.message}</div>`;
+    document.getElementById('table-via-wrap').innerHTML = `<div class="error-box">⚠️ Erro ao carregar viário: ${e.message}</div>`;
+    console.error('[viario]', e);
   }
 }
 
@@ -1097,44 +1237,67 @@ async function initViario() {
 async function initAerodromos() {
   try {
     const data = await fetchSheet(SHEETS.aero);
-    DB.aero = data;
-    DB.filtered.aero = [...data];
-    setKpi('badge-aero', data.length);
-    document.getElementById('kg-aero').textContent = data.length;
+    // Filtrar linhas que são cabeçalho/metadado (sem código ICAO/CIAD válido)
+    const isHeader = r => {
+      const vals = Object.values(r).join(' ');
+      return vals.length > 300 || /classe rbac|regime tarif|especifica/i.test(vals);
+    };
+    const clean = data.filter(r => !isHeader(r) && Object.values(r).some(v => v && v.trim()));
 
-    const keys = Object.keys(data[0] || {});
-    // Detectar colunas relevantes
-    const colOp  = keys.find(k => /opera/i.test(k));
-    const colInt = keys.find(k => /intern/i.test(k));
-    const colMun = keys.find(k => /munic/i.test(k));
-    // Filtrar colunas com nomes numéricos e renomear se necessário
-    // Usar colunas com conteúdo real
-    const validCols = keys.filter(k => {
-      const sample = data.slice(0,3).some(r => r[k] && r[k].trim() && isNaN(k));
-      return sample || !isNaN(k) === false;
-    });
-    COLS.aero = keys.length > 0 ? keys : null;
+    DB.aero = clean;
+    DB.filtered.aero = [...clean];
+    setKpi('badge-aero', clean.length);
+    document.getElementById('kg-aero').textContent = clean.length;
+
+    // Detectar colunas chave (headers normalizados)
+    const sample = clean[0] || {};
+    const keys = Object.keys(sample);
+    const colNome   = keys.find(k => /^nome$|^aerodro/.test(k)) || keys.find(k => k.includes('nome'));
+    const colIcao   = keys.find(k => /^icao$/.test(k)) || keys.find(k => k.includes('icao'));
+    const colCiad   = keys.find(k => /^ciad$/.test(k)) || keys.find(k => k.includes('ciad'));
+    const colMun    = keys.find(k => /municipio/.test(k));
+    const colOp     = keys.find(k => /^operacao$|operac/.test(k));
+    const colInt    = keys.find(k => /internacionaliz/.test(k));
+    const colPista  = keys.find(k => /pista|designacao/.test(k));
+    const colComp   = keys.find(k => /^comprimento$/.test(k));
+    const colLarg   = keys.find(k => /^largura$/.test(k));
+    const colSup    = keys.find(k => /^superficie$|superfic/.test(k));
+    const colAlt    = keys.find(k => /^altitude$/.test(k));
+    const colLat    = keys.find(k => /^lat/.test(k));
+    const colLng    = keys.find(k => /^lon|^lng/.test(k));
+
+    // KPIs
+    const muns = new Set(clean.map(r => colMun?r[colMun]:'').filter(Boolean));
+    const comInt = clean.filter(r => colInt && r[colInt] && r[colInt].trim() && r[colInt].trim() !== '—').length;
+    const ops = colOp ? new Set(clean.map(r=>r[colOp]).filter(Boolean)).size : 0;
 
     document.getElementById('kpi-aero').innerHTML = `
-      <div class="kpi"><div class="kpi-header"><div class="kpi-label">Total de Aeródromos</div><div class="kpi-icon">✈️</div></div><div class="kpi-value">${data.length}</div><div class="kpi-sub">no cadastro SEINFRA</div></div>
-      <div class="kpi ouro"><div class="kpi-header"><div class="kpi-label">Operacionais</div><div class="kpi-icon">🟢</div></div><div class="kpi-value">${colOp?data.filter(r=>(r[colOp]||'').trim()).length:data.length}</div><div class="kpi-sub">em operação</div></div>
-      <div class="kpi verde"><div class="kpi-header"><div class="kpi-label">Internacionais</div><div class="kpi-icon">🌍</div></div><div class="kpi-value">${colInt?data.filter(r=>(r[colInt]||'').trim()&&r[colInt].trim()!=='—').length:'—'}</div><div class="kpi-sub">com status internacional</div></div>
-      <div class="kpi ciano"><div class="kpi-header"><div class="kpi-label">Municípios Atendidos</div><div class="kpi-icon">📍</div></div><div class="kpi-value">${colMun?new Set(data.map(r=>r[colMun]).filter(Boolean)).size:'—'}</div><div class="kpi-sub">municípios com aeródromo</div></div>`;
+      <div class="kpi"><div class="kpi-header"><div class="kpi-label">Total de Aeródromos</div><div class="kpi-icon">✈️</div></div><div class="kpi-value">${clean.length}</div><div class="kpi-sub">no cadastro SEINFRA/AM</div></div>
+      <div class="kpi ouro"><div class="kpi-header"><div class="kpi-label">Municípios Atendidos</div><div class="kpi-icon">📍</div></div><div class="kpi-value">${muns.size}</div><div class="kpi-sub">municípios com aeródromo</div></div>
+      <div class="kpi verde"><div class="kpi-header"><div class="kpi-label">Com Internacionalização</div><div class="kpi-icon">🌍</div></div><div class="kpi-value">${comInt||'—'}</div><div class="kpi-sub">status internacional</div></div>
+      <div class="kpi ciano"><div class="kpi-header"><div class="kpi-label">Categorias Operacionais</div><div class="kpi-icon">📋</div></div><div class="kpi-value">${ops||clean.length}</div><div class="kpi-sub">tipos de operação</div></div>`;
 
+    // Charts
     if (colOp) {
-      const opMap = countBy(data, colOp);
+      const opMap = {}; clean.forEach(r => { const v=r[colOp]||'Sem info'; opMap[v]=(opMap[v]||0)+1; });
       makeDoughnut('chart-aero-op', Object.keys(opMap), Object.values(opMap));
     } else {
-      document.getElementById('chart-aero-op')?.closest('.chart-card')?.querySelector('.cc-sub') && (document.getElementById('chart-aero-op').closest('.chart-wrap').innerHTML = '<div class="empty-state" style="padding:1rem"><div class="empty-text">Coluna de operação não identificada</div></div>');
+      document.getElementById('chart-aero-op').closest('.chart-wrap').innerHTML =
+        '<div class="empty-state" style="padding:1.5rem"><div class="empty-text">Coluna de operação não mapeada</div></div>';
     }
     if (colInt) {
-      const intMap = countBy(data, colInt);
-      makeDoughnut('chart-aero-int', Object.keys(intMap), Object.values(intMap), { colors: [PALETTE.verde[0]||'#007B3E', PALETTE.cinza||'#CBD5E0'] });
+      const iMap = {}; clean.forEach(r => { const v=(r[colInt]||'').trim()||'Sem info'; iMap[v]=(iMap[v]||0)+1; });
+      makeDoughnut('chart-aero-int', Object.keys(iMap), Object.values(iMap), { colors: [PALETTE.azul[0], PALETTE.ouro[0], '#CBD5E0'] });
     }
+
+    // Tabela com colunas limpas e legíveis
+    COLS.aero = ['icao','ciad','nome','municipio_atendido','uf','operacao','internacionalizacao','pista_designacao','comprimento','largura','superficie','altitude'].filter(c => keys.includes(c));
+    if (!COLS.aero.length) COLS.aero = keys.slice(0, 12);
 
     renderSection('aero');
   } catch(e) {
-    document.getElementById('table-aero-wrap').innerHTML = `<div class="error-box">⚠️ Erro: ${e.message}</div>`;
+    document.getElementById('table-aero-wrap').innerHTML = `<div class="error-box">⚠️ Erro ao carregar aeródromos: ${e.message}</div>`;
+    console.error('[aero]', e);
   }
 }
 
@@ -1142,8 +1305,6 @@ async function initAerodromos() {
 async function initTerminais() {
   try {
     const data = await fetchSheet(SHEETS.term);
-    // Detectar header real (pode ter linhas de cabeçalho complexo)
-    // Filtrar linhas com dados reais
     const cleaned = data.filter(r => Object.values(r).some(v => v && v.trim() && v !== '—'));
     DB.term = cleaned;
     DB.filtered.term = [...cleaned];
@@ -1151,33 +1312,106 @@ async function initTerminais() {
     document.getElementById('kg-term').textContent = cleaned.length;
 
     const keys = Object.keys(cleaned[0] || {});
-    const colMun = keys.find(k => /munic/i.test(k)) || keys[0];
-    const colSol = keys.find(k => /solic/i.test(k));
-    const colLoc = keys.find(k => /local|comuni/i.test(k));
-    COLS.term = keys;
+    const colMun = keys.find(k => /munic/.test(k)) || keys[0];
+    const colSol = keys.find(k => /solic/.test(k));
+    const colLoc = keys.find(k => /local|comuni/.test(k));
+    const colGov = keys.find(k => /^gov$/.test(k));
+    const colProc= keys.find(k => /proc/.test(k));
+    const colAssin=keys.find(k => /assin/.test(k));
 
-    const muns = new Set(cleaned.map(r=>r[colMun]).filter(Boolean));
-    document.getElementById('kpi-term').innerHTML = `
-      <div class="kpi"><div class="kpi-header"><div class="kpi-label">Total de Terminais</div><div class="kpi-icon">⚓</div></div><div class="kpi-value">${cleaned.length}</div><div class="kpi-sub">terminais cadastrados</div></div>
-      <div class="kpi ouro"><div class="kpi-header"><div class="kpi-label">Municípios Atendidos</div><div class="kpi-icon">📍</div></div><div class="kpi-value">${muns.size}</div><div class="kpi-sub">de 62 municípios</div></div>
-      <div class="kpi verde"><div class="kpi-header"><div class="kpi-label">Comunidades Atendidas</div><div class="kpi-icon">🏘️</div></div><div class="kpi-value">${colLoc?new Set(cleaned.map(r=>r[colLoc]).filter(Boolean)).size:'—'}</div><div class="kpi-sub">localidades com terminal</div></div>
-      <div class="kpi ciano"><div class="kpi-header"><div class="kpi-label">Média por Município</div><div class="kpi-icon">📊</div></div><div class="kpi-value">${muns.size?(cleaned.length/muns.size).toFixed(1):'—'}</div><div class="kpi-sub">terminais por município</div></div>`;
-
-    // Top municípios
+    // Charts
     if (colMun) {
-      const munMap = countBy(cleaned, colMun);
-      const topMun = topN(munMap, 10);
-      makeBar('chart-term-mun', topMun.map(e=>e[0]), topMun.map(e=>e[1]), { horizontal: true, colors: PALETTE.azul[0] });
+      const munMap = {}; cleaned.forEach(r => { const v=r[colMun]||'Sem info'; munMap[v]=(munMap[v]||0)+1; });
+      const t = topN(munMap, 8);
+      makeBar('chart-term-mun', t.map(e=>e[0]), t.map(e=>e[1]), { horizontal: true, colors: PALETTE.azul[0] });
     }
     if (colSol) {
-      const solMap = countBy(cleaned, colSol);
+      const solMap = {}; cleaned.forEach(r => { const v=r[colSol]||'Sem info'; solMap[v]=(solMap[v]||0)+1; });
       makeDoughnut('chart-term-sol', Object.keys(solMap), Object.values(solMap));
     }
 
-    renderSection('term');
+    // Renderizar cards
+    renderTermCards(cleaned, colMun, colLoc, colGov, colProc, colAssin, keys);
   } catch(e) {
-    document.getElementById('table-term-wrap').innerHTML = `<div class="error-box">⚠️ Erro: ${e.message}</div>`;
+    document.getElementById('term-cards-grid').innerHTML = `<div class="error-box">⚠️ Erro: ${e.message}</div>`;
+    console.error('[terminais]', e);
   }
+}
+
+function renderTermCards(data, colMun, colLoc, colGov, colProc, colAssin, allKeys) {
+  const grid = document.getElementById('term-cards-grid');
+  if (!data.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">⚓</div><div class="empty-text">Nenhum terminal encontrado</div></div>';
+    return;
+  }
+  grid.innerHTML = data.map((r, i) => {
+    const mun  = colMun ? r[colMun] : '—';
+    const loc  = colLoc ? r[colLoc] : '';
+    const gov  = colGov ? r[colGov] : '';
+    const proc = colProc ? r[colProc] : '';
+    const assin= colAssin? r[colAssin]:'';
+    const isGov= gov && ['CH','SEINFRA','2','ESTADO'].includes(String(gov).toUpperCase().trim());
+    return `<div class="term-card" onclick="abrirModalTerm(${i})" style="background:var(--branco);border:1px solid var(--borda);border-radius:14px;padding:1.2rem;cursor:pointer;transition:all .2s;position:relative;overflow:hidden">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${isGov?'var(--azul)':'var(--ouro)'}"></div>
+      <div style="display:flex;align-items:flex-start;gap:.8rem;margin-bottom:.8rem">
+        <div style="width:38px;height:38px;border-radius:10px;background:${isGov?'var(--azul-lt)':'var(--ouro-lt)'};display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">⚓</div>
+        <div style="min-width:0">
+          <div style="font-size:.85rem;font-weight:800;color:var(--azul);line-height:1.2;margin-bottom:.25rem">${mun||'Município'}</div>
+          ${loc ? `<div style="font-size:.72rem;color:var(--cinza-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${loc}</div>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem">
+        ${gov ? `<span class="pill ${isGov?'azul':'ouro'}" style="font-size:.58rem">${gov}</span>` : ''}
+        ${proc ? `<span class="pill cinza" style="font-size:.58rem">📋 ${proc}</span>` : ''}
+        ${assin ? `<span class="pill verde" style="font-size:.58rem">📅 ${assin}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Hover effect
+  grid.querySelectorAll('.term-card').forEach(c => {
+    c.addEventListener('mouseenter', () => { c.style.boxShadow = '0 8px 24px rgba(0,45,114,.12)'; c.style.transform = 'translateY(-2px)'; });
+    c.addEventListener('mouseleave', () => { c.style.boxShadow = ''; c.style.transform = ''; });
+  });
+
+  // Armazena referências para modal
+  window._termData = data;
+  window._termAllKeys = allKeys;
+}
+
+function filtrarTerminais() {
+  const q = (document.getElementById('search-term')?.value || '').toLowerCase();
+  const data = q ? DB.term.filter(r => Object.values(r).some(v => v.toLowerCase().includes(q))) : [...DB.term];
+  const keys = Object.keys(DB.term[0] || {});
+  const colMun = keys.find(k => /munic/.test(k)) || keys[0];
+  const colLoc = keys.find(k => /local|comuni/.test(k));
+  const colGov = keys.find(k => /^gov$/.test(k));
+  const colProc= keys.find(k => /proc/.test(k));
+  const colAssin=keys.find(k => /assin/.test(k));
+  renderTermCards(data, colMun, colLoc, colGov, colProc, colAssin, keys);
+}
+
+function abrirModalTerm(idx) {
+  const r = window._termData[idx];
+  if (!r) return;
+  const keys = window._termAllKeys || Object.keys(r);
+  const colMun = keys.find(k => /munic/.test(k)) || keys[0];
+  document.getElementById('term-modal-title').textContent = '⚓ ' + (colMun ? r[colMun] : 'Terminal Fluvial');
+  const campos = keys.filter(k => r[k] && r[k].trim() && r[k] !== '—');
+  document.getElementById('term-modal-body').innerHTML = `
+    <div style="display:grid;gap:.7rem">
+      ${campos.map(k => `
+        <div style="display:flex;flex-direction:column;gap:.15rem;padding:.6rem .8rem;background:var(--cinza-5);border-radius:8px">
+          <span style="font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--cinza-3)">${k.replace(/_/g,' ')}</span>
+          <span style="font-size:.82rem;font-weight:500;color:var(--cinza-1)">${r[k]}</span>
+        </div>`).join('')}
+    </div>`;
+  document.getElementById('term-modal-overlay').style.display = 'block';
+  document.getElementById('term-modal').style.display = 'block';
+}
+function fecharModalTerm() {
+  document.getElementById('term-modal-overlay').style.display = 'none';
+  document.getElementById('term-modal').style.display = 'none';
 }
 
 // ── INIT SINISTROS ──
