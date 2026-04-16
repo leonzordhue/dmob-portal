@@ -67,14 +67,20 @@ a{text-decoration:none;color:inherit}
 
 .sb-section{padding:.9rem 1rem .3rem;font-size:.55rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.35)}
 
-.nav-item{display:flex;align-items:center;gap:.8rem;padding:.65rem 1.2rem;cursor:pointer;border-left:3px solid transparent;transition:all .2s;position:relative}
-.nav-item:hover{background:rgba(255,255,255,.06);border-left-color:rgba(255,255,255,.2)}
-.nav-item.active{background:rgba(245,166,35,.12);border-left-color:var(--ouro)}
-.nav-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0;background:rgba(255,255,255,.08);transition:all .2s}
-.nav-item.active .nav-icon{background:rgba(245,166,35,.2)}
-.nav-label{font-size:.82rem;font-weight:600;color:rgba(255,255,255,.75);transition:color .2s}
-.nav-item.active .nav-label{color:var(--branco)}
-.nav-badge{margin-left:auto;background:var(--ouro);color:var(--azul-dk);font-size:.58rem;font-weight:800;padding:.15em .55em;border-radius:100px}
+.nav-item{display:flex;align-items:center;gap:.75rem;padding:.55rem .9rem .55rem 1rem;cursor:pointer;border-left:3px solid transparent;transition:all .18s ease;position:relative;margin:1px .7rem;border-radius:10px;user-select:none}
+.nav-item:hover{background:rgba(255,255,255,.09);border-left-color:rgba(255,255,255,.0);transform:translateX(2px)}
+.nav-item:hover .nav-icon{background:rgba(255,255,255,.18);transform:scale(1.08)}
+.nav-item.active{background:linear-gradient(135deg,rgba(245,166,35,.18),rgba(245,166,35,.08));border-left-color:var(--ouro);box-shadow:0 2px 12px rgba(245,166,35,.15),inset 0 0 0 1px rgba(245,166,35,.15)}
+.nav-item.active .nav-icon{background:rgba(245,166,35,.25);box-shadow:0 0 10px rgba(245,166,35,.2)}
+.nav-item.active .nav-icon svg{stroke:var(--ouro)}
+.nav-item:active{transform:translateX(1px) scale(.99)}
+.nav-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(255,255,255,.1);transition:all .18s ease;border:1px solid rgba(255,255,255,.06)}
+.nav-icon svg{stroke:rgba(255,255,255,.7);transition:stroke .18s}
+.nav-item:hover .nav-icon svg{stroke:rgba(255,255,255,.95)}
+.nav-label{font-size:.8rem;font-weight:600;color:rgba(255,255,255,.7);transition:color .18s;letter-spacing:.01em}
+.nav-item:hover .nav-label{color:rgba(255,255,255,.95)}
+.nav-item.active .nav-label{color:var(--branco);font-weight:700}
+.nav-badge{margin-left:auto;background:var(--ouro);color:var(--azul-dk);font-size:.58rem;font-weight:800;padding:.18em .6em;border-radius:100px;min-width:22px;text-align:center;box-shadow:0 1px 4px rgba(245,166,35,.3);flex-shrink:0}
 
 .sidebar-footer{margin-top:auto;padding:1rem 1.2rem;border-top:1px solid rgba(255,255,255,.08)}
 .sf-text{font-size:.6rem;color:rgba(255,255,255,.3);letter-spacing:.05em}
@@ -286,43 +292,57 @@ td.mono{font-family:'Courier New',monospace;font-size:.72rem;color:var(--cinza-2
   </div>
 
   <div class="sb-section">Visão Geral</div>
-  <div class="nav-item active" onclick="navigate('painel')">
-    <div class="nav-icon">📊</div>
+  <div class="nav-item active" data-page="painel" onclick="window.navigate('painel')">
+    <div class="nav-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    </div>
     <span class="nav-label">Painel Geral</span>
   </div>
 
   <div class="sb-section">Infraestrutura Viária</div>
-  <div class="nav-item" onclick="navigate('rodovias')">
-    <div class="nav-icon">🛣️</div>
+  <div class="nav-item" data-page="rodovias" onclick="window.navigate('rodovias')">
+    <div class="nav-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l3-10h12l3 10"/><path d="M9 7V3M15 7V3"/><line x1="3" y1="17" x2="21" y2="17"/></svg>
+    </div>
     <span class="nav-label">Rodovias</span>
     <span class="nav-badge" id="badge-rod">—</span>
   </div>
-  <div class="nav-item" onclick="navigate('ramais')">
-    <div class="nav-icon">🌿</div>
+  <div class="nav-item" data-page="ramais" onclick="window.navigate('ramais')">
+    <div class="nav-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L8 6H4v4l-2 2 2 2v4h4l4 4 4-4h4v-4l2-2-2-2V6h-4z"/><circle cx="12" cy="12" r="2"/></svg>
+    </div>
     <span class="nav-label">Ramais</span>
     <span class="nav-badge" id="badge-ram">—</span>
   </div>
-  <div class="nav-item" onclick="navigate('viario')">
-    <div class="nav-icon">🏙️</div>
+  <div class="nav-item" data-page="viario" onclick="window.navigate('viario')">
+    <div class="nav-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    </div>
     <span class="nav-label">Viário Urbano</span>
     <span class="nav-badge" id="badge-via">—</span>
   </div>
 
   <div class="sb-section">Infraestrutura Modal</div>
-  <div class="nav-item" onclick="navigate('aerodromos')">
-    <div class="nav-icon">✈️</div>
+  <div class="nav-item" data-page="aerodromos" onclick="window.navigate('aerodromos')">
+    <div class="nav-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
+    </div>
     <span class="nav-label">Aeródromos</span>
     <span class="nav-badge" id="badge-aero">—</span>
   </div>
-  <div class="nav-item" onclick="navigate('terminais')">
-    <div class="nav-icon">⚓</div>
+  <div class="nav-item" data-page="terminais" onclick="window.navigate('terminais')">
+    <div class="nav-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 017 7c0 5-7 13-7 13S5 14 5 9a7 7 0 017-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+    </div>
     <span class="nav-label">Terminais Fluviais</span>
     <span class="nav-badge" id="badge-term">—</span>
   </div>
 
   <div class="sb-section">Análise & Inteligência</div>
-  <div class="nav-item" onclick="navigate('sinistros')">
-    <div class="nav-icon">🚨</div>
+  <div class="nav-item" data-page="sinistros" onclick="window.navigate('sinistros')">
+    <div class="nav-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </div>
     <span class="nav-label">Sinistros / Notícias</span>
     <span class="nav-badge" id="badge-sin">—</span>
   </div>
@@ -831,7 +851,7 @@ function countBy(arr, key) {
   arr.forEach(r => { const v = r[key] || 'Sem info'; map[v] = (map[v]||0) + 1; });
   return map;
 }
-function top(obj, n = 5) {
+function topN(obj, n = 5) {
   return Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);
 }
 function setKpi(id, val) { const el = document.getElementById(id); if(el) el.textContent = typeof val === 'number' ? val.toLocaleString('pt-BR') : val; }
@@ -911,7 +931,7 @@ async function initRodovias() {
       const ext = parseFloat((r['EXTENSÃO']||r['EXTENSAO']||'0').replace(',','.')) || 0;
       extMap[rod] = (extMap[rod]||0) + ext;
     });
-    const topExt = top(extMap, 10);
+    const topExt = topN(extMap, 10);
     makeBar('chart-rod-ext', topExt.map(e=>e[0]), topExt.map(e=>parseFloat(e[1].toFixed(2))), { horizontal: true, colors: PALETTE.multi.slice(0,10), unit:' km' });
 
     // Accordions por rodovia
@@ -1001,7 +1021,7 @@ async function initRamais() {
     // Rank municípios
     if (colMun) {
       const munMap = countBy(data, colMun);
-      const topMun = top(munMap, 5).map(([l,v]) => ({label:l, value:v}));
+      const topMun = topN(munMap, 5).map(([l,v]) => ({label:l, value:v}));
       renderRankList('rank-ram-mun', topMun, topMun[0]?.value||1, 'ouro');
       const botMun = Object.entries(munMap).sort((a,b)=>a[1]-b[1]).slice(0,5).map(([l,v])=>({label:l,value:v}));
       renderRankList('rank-ram-menos', botMun, topMun[0]?.value||1, 'verm');
@@ -1017,7 +1037,7 @@ async function initRamais() {
     // Calha
     if (colCalha) {
       const calhaMap = countBy(data, colCalha);
-      const cal = top(calhaMap, 8);
+      const cal = topN(calhaMap, 8);
       makeBar('chart-ram-calha', cal.map(e=>e[0]), cal.map(e=>e[1]), { colors: PALETTE.multi.slice(0,8) });
     }
 
@@ -1051,7 +1071,7 @@ async function initViario() {
     // Top 10 municípios
     if (colMun) {
       const munMap = countBy(data, colMun);
-      const topMun = top(munMap, 10);
+      const topMun = topN(munMap, 10);
       makeBar('chart-via-top', topMun.map(e=>e[0]), topMun.map(e=>e[1]), { horizontal: true, colors: PALETTE.azul[0] });
     }
 
@@ -1063,7 +1083,7 @@ async function initViario() {
         const e = parseFloat((r[colExt]||'0').replace(',','.'))||0;
         extMap[m] = (extMap[m]||0) + e;
       });
-      const topExt = top(extMap,5).map(([l,v])=>({label:l,value:v,unit:'m'}));
+      const topExt = topN(extMap,5).map(([l,v])=>({label:l,value:v,unit:'m'}));
       renderRankList('rank-via-ext', topExt, topExt[0]?.value||1, 'verde');
     }
 
@@ -1146,7 +1166,7 @@ async function initTerminais() {
     // Top municípios
     if (colMun) {
       const munMap = countBy(cleaned, colMun);
-      const topMun = top(munMap, 10);
+      const topMun = topN(munMap, 10);
       makeBar('chart-term-mun', topMun.map(e=>e[0]), topMun.map(e=>e[1]), { horizontal: true, colors: PALETTE.azul[0] });
     }
     if (colSol) {
@@ -1184,12 +1204,12 @@ async function initSinistros() {
 
     if (colTipo) {
       const tipoMap = countBy(data, colTipo);
-      const topT = top(tipoMap, 7);
+      const topT = topN(tipoMap, 7);
       makeDoughnut('chart-sin-tipo', topT.map(e=>e[0]), topT.map(e=>e[1]));
     }
     if (colRod) {
       const rodMap = countBy(data, colRod);
-      const topR = top(rodMap, 5).map(([l,v])=>({label:l,value:v}));
+      const topR = topN(rodMap, 5).map(([l,v])=>({label:l,value:v}));
       renderRankList('rank-sin-rod', topR, topR[0]?.value||1, 'verm');
     }
 
@@ -1228,18 +1248,20 @@ const PAGE_META = {
   sinistros: { bread: 'Análise & Inteligência', title: 'Sinistros & Notícias' }
 };
 
-function navigate(page) {
+window.navigate = function(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById(`page-${page}`).classList.add('active');
-  document.querySelector(`.nav-item[onclick="navigate('${page}')"]`).classList.add('active');
+  const pageEl = document.getElementById('page-' + page);
+  if (pageEl) pageEl.classList.add('active');
+  const navEl = document.querySelector('.nav-item[data-page="' + page + '"]');
+  if (navEl) navEl.classList.add('active');
   const meta = PAGE_META[page] || {};
   document.getElementById('ph-bread').textContent = meta.bread || page;
   document.getElementById('ph-title').textContent = meta.title || page;
   window.scrollTo(0, 0);
-  document.querySelector('.content').classList.add('fade-in');
-  setTimeout(() => document.querySelector('.content').classList.remove('fade-in'), 400);
-}
+  const content = document.querySelector('.content');
+  if (content) { content.classList.add('fade-in'); setTimeout(() => content.classList.remove('fade-in'), 400); }
+};
 
 // ── EXPORT ──────────────────────────────────────────────────────────────────
 function exportarCSV() { exportarCSVSec('geral'); }
