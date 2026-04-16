@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Portal SEINFRA/AM — Painel de Gestão Integrado</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <style>
+/* ═══════════════════════════════════════════════════════════════
+   DESIGN SYSTEM — SEINFRA / GOVERNO DO AMAZONAS
+   Tokens idênticos ao padrão dos painéis SEINFRA/AM existentes
+═══════════════════════════════════════════════════════════════ */
+:root{
+  --azul:        #002D72;
+  --azul-h:      #003A8C;
+  --azul-cl:     #EBF0FA;
+  --azul-brd:    #C4D0E8;
+  --amarelo:     #F5A623;
+  --amarelo-cl:  #FEF3DC;
+  --amarelo-brd: #F5C878;
+  --verde:       #007B3E;
+  --verde-cl:    #E6F4ED;
+  --gov-azul:    #293258;
+  --gov-verde:   #33A23D;
+  --vermelho:    #D93025;
+  --vermelho-cl: #FDECEA;
+  --roxo:        #7b2d8b;
+  --roxo-cl:     #f3e8ff;
+  --roxo-brd:    #d8b4fe;
+  --laranja:     #E67E22;
+  --laranja-cl:  #FEF0E6;
+  --teal:        #0E8A7D;
+  --teal-cl:     #E0F5F3;
+  --cinza-txt:   #1A2540;
+  --cinza-med:   #4A5568;
+  --cinza-aux:   #8896A8;
+  --cinza-bg:    #F5F7FB;
+  --borda:       #E0E6F0;
+  --branco:      #FFFFFF;
+  --font:        "Outfit", sans-serif;
+  --sh:          0 2px 16px rgba(0,45,114,.09), 0 0 0 1px var(--borda);
+  --sh-md:       0 6px 28px rgba(0,45,114,.14);
+  --sidebar-w:   268px;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--cinza-bg);color:var(--cinza-txt);
+  -webkit-font-smoothing:antialiased;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+a{text-decoration:none;color:inherit}
+::selection{background:rgba(0,45,114,.12)}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideRight{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
+
+/* ── LOADER ── */
+.loader-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,45,114,.94);
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem}
+.loader-overlay.show{display:flex}
+.loader-ring{width:48px;height:48px;border:3px solid rgba(255,255,255,.15);
+  border-top-color:var(--amarelo);border-radius:50%;animation:spin .9s linear infinite}
+.loader-text{font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:rgba(255,255,255,.65)}
+
+/* ── GOV HEADER (PADRÃO SEINFRA/AM) ── */
+.gov-header{background:#fff;padding:.6rem 1.75rem;display:flex;align-items:center;
+  justify-content:space-between;flex-shrink:0;z-index:500;position:relative;
+  box-shadow:0 2px 12px rgba(41,50,88,.08);
+  border-bottom:4px solid transparent;
+  border-image:linear-gradient(90deg,#293258 0% 33%,#33A23D 33% 66%,#FFED00 66% 100%) 1}
+.gov-logo-zone{display:flex;align-items:center;gap:1rem}
+.gov-logo-placeholder{height:42px;display:flex;align-items:center;gap:.6rem}
+.gov-logo-emblem{width:42px;height:42px;background:linear-gradient(135deg,#293258,#002D72);
+  border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0}
+.gov-logo-text{display:flex;flex-direction:column}
+.gov-logo-sup{font-size:.56rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--cinza-aux);margin-bottom:.08rem}
+.gov-logo-name{font-size:.95rem;font-weight:900;color:var(--gov-azul);letter-spacing:-.01em}
+.gov-logo-name span{color:var(--gov-verde)}
+.gov-header-right{display:flex;align-items:center;gap:.75rem}
+.gov-badge{font-size:.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--gov-azul);background:#FFED00;padding:.32em 1.1em;border-radius:100px;white-space:nowrap}
+.gov-status{display:flex;align-items:center;gap:.4rem;font-size:.62rem;font-weight:700;
+  color:var(--gov-verde);background:rgba(51,162,61,.1);border:1px solid rgba(51,162,61,.22);
+  padding:.3em .85em;border-radius:100px}
+.gov-dot{width:6px;height:6px;border-radius:50%;background:var(--gov-verde);animation:pulse 2s infinite}
+.gov-portal-tag{font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--azul);background:var(--azul-cl);border:1.5px solid var(--azul-brd);
+  padding:.3em .85em;border-radius:100px}
+
+/* ── APP SHELL ── */
+.app-shell{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar-w);background:var(--azul);display:flex;flex-direction:column;
+  flex-shrink:0;overflow-y:auto;overflow-x:hidden;position:relative;transition:width .25s ease;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.12) transparent}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px}
+.sidebar.collapsed{width:56px}
+
+.sidebar-brand{padding:1.25rem 1.1rem;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0}
+.brand-title{font-size:.85rem;font-weight:800;color:#fff;letter-spacing:-.01em;
+  white-space:nowrap;overflow:hidden;transition:opacity .2s}
+.brand-sub{font-size:.6rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:rgba(255,255,255,.4);margin-top:.15rem;white-space:nowrap;overflow:hidden;transition:opacity .2s}
+.sidebar.collapsed .brand-title,.sidebar.collapsed .brand-sub{opacity:0;pointer-events:none}
+
+.sidebar-section-label{font-size:.55rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  color:rgba(255,255,255,.3);padding:.9rem 1.1rem .4rem;white-space:nowrap;overflow:hidden;
+  transition:opacity .2s}
+.sidebar.collapsed .sidebar-section-label{opacity:0;height:0;padding:0}
+
+.nav-item{display:flex;align-items:center;gap:.8rem;padding:.72rem 1.1rem;cursor:pointer;
+  transition:all .18s;position:relative;border-radius:0;user-select:none;
+  border-left:3px solid transparent}
+.nav-item:hover{background:rgba(255,255,255,.08);border-left-color:rgba(255,255,255,.25)}
+.nav-item.active{background:rgba(255,255,255,.12);border-left-color:var(--amarelo)}
+.nav-item.active .nav-label{color:var(--amarelo);font-weight:700}
+.nav-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;
+  justify-content:center;font-size:1.05rem;flex-shrink:0;transition:all .2s}
+.nav-label{font-size:.82rem;font-weight:600;color:rgba(255,255,255,.8);white-space:nowrap;
+  overflow:hidden;transition:opacity .2s}
+.sidebar.collapsed .nav-label{opacity:0;pointer-events:none}
+.nav-badge{margin-left:auto;font-size:.55rem;font-weight:800;background:var(--amarelo);
+  color:var(--azul);padding:.15em .55em;border-radius:100px;flex-shrink:0;transition:opacity .2s}
+.sidebar.collapsed .nav-badge{opacity:0}
+.nav-item.active .nav-icon{background:rgba(245,166,35,.18)}
+
+.sidebar-toggle{position:absolute;bottom:0;width:100%;padding:.85rem 1.1rem;
+  border-top:1px solid rgba(255,255,255,.08);cursor:pointer;display:flex;align-items:center;
+  gap:.6rem;background:rgba(0,0,0,.12);transition:background .18s;flex-shrink:0}
+.sidebar-toggle:hover{background:rgba(0,0,0,.2)}
+.toggle-icon{font-size:.9rem;color:rgba(255,255,255,.5);width:34px;text-align:center;flex-shrink:0;transition:transform .25s}
+.sidebar.collapsed .toggle-icon{transform:rotate(180deg)}
+.toggle-label{font-size:.72rem;font-weight:600;color:rgba(255,255,255,.4);white-space:nowrap;transition:opacity .2s}
+.sidebar.collapsed .toggle-label{opacity:0}
+
+/* ── MAIN CONTENT ── */
+.main-content{flex:1;overflow-y:auto;overflow-x:hidden;position:relative}
+.page-section{display:none;animation:fadeIn .3s ease}
+.page-section.active{display:block}
+
+/* ── PAGE HERO ── */
+.page-hero{padding:2.25rem 2rem 2rem;position:relative;overflow:hidden}
+.page-hero::before{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(-50deg,transparent,transparent 48px,rgba(255,255,255,.02) 48px,rgba(255,255,255,.02) 49px)}
+.page-hero-accent{position:absolute;left:0;top:0;bottom:0;width:4px}
+.page-hero-inner{position:relative;z-index:1;max-width:1400px;margin:0 auto}
+.page-hero-eyebrow{font-size:.62rem;font-weight:800;letter-spacing:.2em;text-transform:uppercase;
+  margin-bottom:.55rem}
+.page-hero-title{font-size:clamp(1.5rem,3vw,2.2rem);font-weight:900;color:#fff;
+  letter-spacing:-.025em;line-height:1.1}
+.page-hero-sub{font-size:.85rem;color:rgba(255,255,255,.55);margin-top:.4rem;max-width:600px}
+.hero-wave{overflow:hidden;line-height:0;margin-top:-1px}
+.hero-wave svg{display:block;width:100%}
+
+/* ── CONTENT WRAP ── */
+.content-wrap{max-width:1400px;margin:0 auto;padding:1.5rem 2rem 3rem}
+
+/* ── SECTION HEADING ── */
+.section-heading{display:flex;align-items:center;gap:.65rem;margin-bottom:1.25rem;margin-top:.25rem}
+.section-heading::before{content:"";display:block;width:18px;height:2px;background:var(--amarelo);
+  border-radius:2px;flex-shrink:0}
+.section-heading-text{font-size:.68rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--cinza-aux)}
+
+/* ── KPI GRID ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1rem;
+  margin-bottom:1.75rem}
+.kpi-card{background:var(--branco);border-radius:14px;box-shadow:var(--sh);padding:1.4rem 1.4rem 1.3rem;
+  position:relative;overflow:hidden;transition:box-shadow .2s,transform .2s;cursor:default}
+.kpi-card:hover{box-shadow:var(--sh-md);transform:translateY(-2px)}
+.kpi-card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--card-color,var(--azul)),var(--card-color-h,var(--azul-h)))}
+.kpi-label{font-size:.62rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--cinza-aux);margin-bottom:.7rem}
+.kpi-value{font-size:2.4rem;font-weight:900;line-height:1;color:var(--card-color,var(--azul));
+  letter-spacing:-.03em;margin-bottom:.3rem}
+.kpi-sub{font-size:.68rem;color:var(--cinza-aux);font-weight:500}
+.kpi-icon{position:absolute;top:1.15rem;right:1.15rem;font-size:1.9rem;opacity:.08}
+
+/* ── CHARTS ── */
+.charts-grid{display:grid;gap:1.25rem;margin-bottom:1.5rem}
+.charts-grid.cols-2{grid-template-columns:repeat(2,1fr)}
+.charts-grid.cols-3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:960px){.charts-grid.cols-2,.charts-grid.cols-3{grid-template-columns:1fr}}
+.chart-card{background:var(--branco);border-radius:14px;box-shadow:var(--sh);padding:1.4rem;
+  transition:box-shadow .2s}
+.chart-card:hover{box-shadow:var(--sh-md)}
+.chart-title{font-size:.82rem;font-weight:700;color:var(--cinza-txt);margin-bottom:.2rem}
+.chart-sub{font-size:.68rem;color:var(--cinza-aux);margin-bottom:1.15rem}
+.chart-wrap{position:relative;height:220px}
+
+/* ── TABLE CARD ── */
+.table-card{background:var(--branco);border-radius:14px;box-shadow:var(--sh);
+  overflow:hidden;margin-bottom:1.5rem}
+.table-header{padding:1.1rem 1.4rem;border-bottom:1px solid var(--borda);
+  display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.table-title{font-size:.9rem;font-weight:700;color:var(--cinza-txt)}
+.table-count{font-size:.72rem;font-weight:600;color:var(--cinza-aux)}
+.table-count span{color:var(--azul);font-weight:800}
+
+.controls-row{padding:.85rem 1.4rem;border-bottom:1px solid var(--borda);
+  display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;background:var(--cinza-bg)}
+.search-wrap{flex:1;min-width:180px;max-width:300px;display:flex;align-items:center;gap:.45rem;
+  background:var(--branco);border:1.5px solid var(--borda);border-radius:8px;padding:.5rem .85rem;
+  transition:border-color .2s}
+.search-wrap:focus-within{border-color:var(--azul)}
+.search-wrap input{flex:1;border:none;background:transparent;font-family:var(--font);
+  font-size:.82rem;color:var(--cinza-txt);outline:none}
+.search-icon{font-size:.8rem;color:var(--cinza-aux)}
+.filter-select{font-family:var(--font);font-size:.8rem;font-weight:500;color:var(--cinza-txt);
+  background:var(--branco);border:1.5px solid var(--borda);border-radius:8px;
+  padding:.5rem 2rem .5rem .8rem;outline:none;cursor:pointer;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238896A8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right .75rem center;
+  min-width:140px;transition:border-color .2s}
+.filter-select:focus{border-color:var(--azul)}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.52rem 1.1rem;border:none;
+  border-radius:8px;font-family:var(--font);font-size:.78rem;font-weight:700;cursor:pointer;
+  transition:all .2s;white-space:nowrap}
+.btn-primary{background:var(--azul);color:#fff}
+.btn-primary:hover{background:var(--azul-h);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,45,114,.25)}
+.btn-sec{background:var(--cinza-bg);color:var(--cinza-txt);border:1.5px solid var(--borda)}
+.btn-sec:hover{border-color:var(--azul);color:var(--azul)}
+.btn-sm{padding:.38rem .8rem;font-size:.72rem}
+
+.table-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.78rem}
+thead tr{background:var(--azul);color:#fff}
+thead th{padding:.85rem 1rem;text-align:left;font-size:.62rem;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--borda);transition:background .15s}
+tbody tr:hover{background:var(--azul-cl)}
+tbody td{padding:.72rem 1rem;color:var(--cinza-txt);vertical-align:middle}
+tbody tr:last-child{border-bottom:none}
+
+.badge{font-size:.58rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  padding:.2em .65em;border-radius:100px;white-space:nowrap}
+.badge-blue{background:var(--azul-cl);color:var(--azul);border:1px solid var(--azul-brd)}
+.badge-yellow{background:var(--amarelo-cl);color:#c27d05;border:1px solid var(--amarelo-brd)}
+.badge-green{background:var(--verde-cl);color:var(--verde);border:1px solid rgba(0,123,62,.25)}
+.badge-red{background:var(--vermelho-cl);color:var(--vermelho);border:1px solid rgba(217,48,37,.25)}
+.badge-purple{background:var(--roxo-cl);color:var(--roxo);border:1px solid var(--roxo-brd)}
+.badge-orange{background:var(--laranja-cl);color:var(--laranja);border:1px solid rgba(230,126,34,.3)}
+.badge-teal{background:var(--teal-cl);color:var(--teal);border:1px solid rgba(14,138,125,.3)}
+
+.empty-state{padding:3.5rem 2rem;text-align:center}
+.empty-icon{font-size:2.5rem;margin-bottom:.75rem;opacity:.4}
+.empty-title{font-size:.95rem;font-weight:700;color:var(--cinza-txt);margin-bottom:.35rem}
+.empty-sub{font-size:.78rem;color:var(--cinza-aux)}
+
+/* ── PAGINATION ── */
+.pagination{display:flex;align-items:center;justify-content:space-between;
+  padding:.85rem 1.4rem;border-top:1px solid var(--borda);flex-wrap:wrap;gap:.5rem}
+.page-info{font-size:.72rem;color:var(--cinza-aux)}
+.page-btns{display:flex;gap:.3rem;flex-wrap:wrap}
+.page-btn{font-family:var(--font);font-size:.72rem;font-weight:600;padding:.35em .75em;
+  border:1.5px solid var(--borda);border-radius:7px;background:var(--branco);
+  color:var(--cinza-med);cursor:pointer;transition:all .18s}
+.page-btn:hover:not(:disabled){border-color:var(--azul);color:var(--azul)}
+.page-btn.active{background:var(--azul);color:#fff;border-color:var(--azul)}
+.page-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ══ HOME DASHBOARD ══ */
+.home-hero{background:linear-gradient(135deg,#012340 0%,var(--azul) 45%,#1a0a33 100%);
+  padding:2.8rem 2rem 5.5rem;position:relative;overflow:hidden}
+.home-hero::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(ellipse at 85% 15%,rgba(123,45,139,.2) 0%,transparent 50%),
+  radial-gradient(ellipse at 5% 85%,rgba(245,166,35,.08) 0%,transparent 45%),
+  repeating-linear-gradient(-45deg,transparent,transparent 48px,rgba(255,255,255,.015) 48px,rgba(255,255,255,.015) 49px)}
+.home-hero-in{position:relative;z-index:1;max-width:1400px;margin:0 auto}
+.home-chip{display:inline-flex;align-items:center;gap:.45rem;font-size:.6rem;font-weight:800;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--amarelo);
+  background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.25);
+  padding:.4em 1.1em;border-radius:100px;margin-bottom:1.15rem}
+.home-chip-dot{width:5px;height:5px;border-radius:50%;background:var(--amarelo);animation:pulse 2s infinite}
+.home-title{font-size:clamp(1.8rem,4vw,3rem);font-weight:900;color:#fff;
+  letter-spacing:-.03em;line-height:1.1;margin-bottom:.65rem}
+.home-title em{font-style:normal;color:#c084fc}
+.home-sub{font-size:.92rem;color:rgba(255,255,255,.55);line-height:1.6;max-width:560px;margin-bottom:2rem}
+.home-stats-row{display:flex;gap:2.5rem;flex-wrap:wrap}
+.home-stat-val{font-size:2.2rem;font-weight:900;color:#fff;letter-spacing:-.04em;line-height:1}
+.home-stat-lbl{font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:rgba(255,255,255,.4);margin-top:.2rem}
+.home-wave{position:absolute;bottom:-1px;left:0;width:100%;z-index:2}
+.home-wave svg{display:block;width:100%}
+
+/* ── CATEGORY CARDS (HOME) ── */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.15rem;
+  margin-bottom:2rem}
+.cat-card{background:var(--branco);border-radius:16px;box-shadow:var(--sh);overflow:hidden;
+  cursor:pointer;transition:all .22s;display:flex;flex-direction:column;border:2px solid transparent}
+.cat-card:hover{box-shadow:var(--sh-md);transform:translateY(-3px);border-color:var(--card-color)}
+.cat-card-head{padding:1.3rem 1.4rem;display:flex;align-items:flex-start;gap:1rem}
+.cat-card-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;
+  justify-content:center;font-size:1.5rem;flex-shrink:0;
+  background:rgba(var(--card-rgb),.1)}
+.cat-card-info{flex:1}
+.cat-card-name{font-size:1.05rem;font-weight:800;color:var(--cinza-txt);margin-bottom:.2rem;letter-spacing:-.01em}
+.cat-card-desc{font-size:.74rem;color:var(--cinza-aux);line-height:1.5}
+.cat-card-footer{padding:.85rem 1.4rem;border-top:1px solid var(--borda);
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--cinza-bg)}
+.cat-card-kpi{font-size:1.5rem;font-weight:900;color:var(--card-color);letter-spacing:-.03em}
+.cat-card-kpi-lbl{font-size:.62rem;font-weight:600;color:var(--cinza-aux);text-transform:uppercase;
+  letter-spacing:.08em;margin-top:.1rem}
+.cat-card-cta{font-size:.72rem;font-weight:700;color:var(--card-color);
+  display:flex;align-items:center;gap:.3rem;opacity:.7;transition:opacity .18s}
+.cat-card:hover .cat-card-cta{opacity:1}
+
+/* ── INFO BAR ── */
+.info-bar{background:var(--azul-cl);border:1px solid var(--azul-brd);border-radius:10px;
+  padding:.9rem 1.2rem;display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem;
+  font-size:.78rem;color:var(--azul)}
+.info-bar-icon{font-size:1rem;flex-shrink:0}
+.info-bar strong{font-weight:700}
+
+/* ── ALERT ── */
+.alert{padding:.85rem 1.15rem;border-radius:9px;font-size:.8rem;font-weight:500;
+  display:none;margin-bottom:1rem}
+.alert.show{display:flex;align-items:center;gap:.6rem}
+.alert.error{background:var(--vermelho-cl);border:1px solid rgba(217,48,37,.2);color:var(--vermelho)}
+.alert.info{background:var(--azul-cl);border:1px solid var(--azul-brd);color:var(--azul)}
+.alert.success{background:var(--verde-cl);border:1px solid rgba(0,123,62,.2);color:var(--verde)}
+
+/* ── RESPONSIVO ── */
+@media(max-width:768px){
+  .sidebar{position:fixed;height:calc(100vh - 70px);z-index:400;bottom:0;transform:translateX(0)}
+  .sidebar.collapsed{width:0;overflow:hidden}
+  .main-content{margin-left:0!important}
+  .content-wrap{padding:1rem 1rem 3rem}
+  .page-hero{padding:1.75rem 1rem 1.75rem}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div class="loader-overlay" id="loaderOverlay">
+  <div class="loader-ring"></div>
+  <div class="loader-text">Carregando dados...</div>
+</div>
+
+<!-- GOV HEADER (PADRÃO SEINFRA/AM) -->
+<header class="gov-header">
+  <div class="gov-logo-zone">
+    <div class="gov-logo-placeholder">
+      <div class="gov-logo-emblem">🏛️</div>
+      <div class="gov-logo-text">
+        <div class="gov-logo-sup">Governo do Estado do Amazonas</div>
+        <div class="gov-logo-name">SEINFRA/<span>AM</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="gov-header-right">
+    <span class="gov-portal-tag">Portal de Gestão</span>
+    <span class="gov-badge">Dados Públicos</span>
+    <div class="gov-status">
+      <span class="gov-dot"></span>
+      Sistema Operacional
+    </div>
+  </div>
+</header>
+
+<!-- APP SHELL -->
+<div class="app-shell">
+
+  <!-- SIDEBAR NAV -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-title">Portal de Gestão</div>
+      <div class="brand-sub">Infraestrutura do Amazonas</div>
+    </div>
+
+    <div class="sidebar-section-label">NAVEGAÇÃO PRINCIPAL</div>
+
+    <div class="nav-item active" data-page="home"
+         style="--nav-bg:rgba(245,166,35,.15)">
+      <div class="nav-icon" style="background:rgba(245,166,35,.15)">🏠</div>
+      <span class="nav-label">Painel Geral</span>
+    </div>
+
+    <div class="sidebar-section-label">INFRAESTRUTURA VIÁRIA</div>
+
+    <div class="nav-item" data-page="rodovias">
+      <div class="nav-icon" style="background:rgba(0,123,62,.18)">🛣️</div>
+      <span class="nav-label">Rodovias</span>
+      <span class="nav-badge" id="badge-rodovias">—</span>
+    </div>
+
+    <div class="nav-item" data-page="ramais">
+      <div class="nav-icon" style="background:rgba(245,166,35,.18)">🌿</div>
+      <span class="nav-label">Ramais</span>
+      <span class="nav-badge" id="badge-ramais">—</span>
+    </div>
+
+    <div class="nav-item" data-page="viario">
+      <div class="nav-icon" style="background:rgba(108,52,131,.18)">🏙️</div>
+      <span class="nav-label">Viário Urbano</span>
+      <span class="nav-badge" id="badge-viario">—</span>
+    </div>
+
+    <div class="sidebar-section-label">INFRAESTRUTURA MODAL</div>
+
+    <div class="nav-item" data-page="aerodromos">
+      <div class="nav-icon" style="background:rgba(0,45,114,.25)">✈️</div>
+      <span class="nav-label">Aeródromos</span>
+      <span class="nav-badge" id="badge-aerodromos">—</span>
+    </div>
+
+    <div class="nav-item" data-page="terminais">
+      <div class="nav-icon" style="background:rgba(41,128,185,.2)">⚓</div>
+      <span class="nav-label">Terminais Fluviais</span>
+      <span class="nav-badge" id="badge-terminais">—</span>
+    </div>
+
+    <div class="sidebar-section-label">ANÁLISE & INTELIGÊNCIA</div>
+
+    <div class="nav-item" data-page="sinistros">
+      <div class="nav-icon" style="background:rgba(217,48,37,.15)">🚨</div>
+      <span class="nav-label">Sinistros / Notícias</span>
+      <span class="nav-badge" id="badge-sinistros">—</span>
+    </div>
+
+    <div class="sidebar-toggle" onclick="toggleSidebar()">
+      <span class="toggle-icon">◀</span>
+      <span class="toggle-label">Recolher menu</span>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content" id="mainContent">
+
+    <!-- ╔══════════════════════════════╗ -->
+    <!-- ║   HOME — PAINEL GERAL        ║ -->
+    <!-- ╚══════════════════════════════╝ -->
+    <section class="page-section active" id="page-home">
+
+      <div class="home-hero">
+        <div class="home-hero-in">
+          <div class="home-chip">
+            <span class="home-chip-dot"></span>
+            Painel de Gestão Integrado — SEINFRA/AM
+          </div>
+          <div class="home-title">
+            Infraestrutura do<br><em>Amazonas</em>
+          </div>
+          <div class="home-sub">
+            Plataforma centralizada de gestão e visualização de dados de infraestrutura
+            viária, aérea e hidroviária do Estado do Amazonas.
+          </div>
+          <div class="home-stats-row" id="homeStats">
+            <div>
+              <div class="home-stat-val" id="homeTotal">—</div>
+              <div class="home-stat-lbl">Registros Totais</div>
+            </div>
+            <div>
+              <div class="home-stat-val" style="color:var(--amarelo)" id="homeCats">6</div>
+              <div class="home-stat-lbl">Categorias</div>
+            </div>
+            <div>
+              <div class="home-stat-val" style="color:#c084fc" id="homeSheets">8</div>
+              <div class="home-stat-lbl">Planilhas Conectadas</div>
+            </div>
+          </div>
+        </div>
+        <div class="home-wave">
+          <svg viewBox="0 0 1440 60" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+            <path d="M0,40 C360,80 1080,0 1440,40 L1440,60 L0,60 Z" fill="#F5F7FB"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="content-wrap">
+        <div class="section-heading">
+          <span class="section-heading-text">Categorias de Infraestrutura</span>
+        </div>
+
+        <div class="cat-grid" id="catGrid">
+          <!-- Cards gerados por JS -->
+        </div>
+
+        <div class="section-heading">
+          <span class="section-heading-text">Fontes de Dados</span>
+        </div>
+        <div class="info-bar">
+          <span class="info-bar-icon">ℹ️</span>
+          <div>
+            <strong>Dados em tempo real via Google Sheets.</strong>
+            As planilhas devem estar compartilhadas como "Qualquer pessoa com o link pode visualizar".
+            Clique em uma categoria acima para carregar e explorar os dados.
+          </div>
+        </div>
+
+        <!-- Tabela rápida de fontes -->
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">📋 Planilhas Conectadas</span>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr>
+                <th>Categoria</th><th>Planilha</th><th>Status</th><th>Ação</th>
+              </tr></thead>
+              <tbody id="sourcesTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ╔══════════════════════════════╗ -->
+    <!-- ║   RODOVIAS                   ║ -->
+    <!-- ╚══════════════════════════════╝ -->
+    <section class="page-section" id="page-rodovias">
+      <div class="page-hero" style="background:linear-gradient(135deg,#014421 0%,var(--verde) 60%,#007b3e 100%)">
+        <div class="page-hero-accent" style="background:linear-gradient(to bottom,var(--amarelo),transparent)"></div>
+        <div class="page-hero-inner">
+          <div class="page-hero-eyebrow" style="color:var(--amarelo)">🛣️ Infraestrutura Viária</div>
+          <div class="page-hero-title">Rodovias do Amazonas</div>
+          <div class="page-hero-sub">Inventário de rodovias estaduais e federais sob gestão SEINFRA/AM</div>
+        </div>
+        <div class="hero-wave"><svg viewBox="0 0 1440 50" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <path d="M0,30 C480,60 960,0 1440,30 L1440,50 L0,50 Z" fill="#F5F7FB"/></svg></div>
+      </div>
+      <div class="content-wrap">
+        <div id="kpi-rodovias" class="kpi-grid"></div>
+        <div class="charts-grid cols-2" id="charts-rodovias"></div>
+        <div id="table-rodovias"></div>
+      </div>
+    </section>
+
+    <!-- ╔══════════════════════════════╗ -->
+    <!-- ║   RAMAIS                     ║ -->
+    <!-- ╚══════════════════════════════╝ -->
+    <section class="page-section" id="page-ramais">
+      <div class="page-hero" style="background:linear-gradient(135deg,#7a4f00 0%,#c27d05 50%,#E67E22 100%)">
+        <div class="page-hero-accent" style="background:linear-gradient(to bottom,#fff,transparent)"></div>
+        <div class="page-hero-inner">
+          <div class="page-hero-eyebrow" style="color:#fff3cd">🌿 Infraestrutura Viária</div>
+          <div class="page-hero-title">Ramais SEINFRA/AM</div>
+          <div class="page-hero-sub">Inventário e situação dos ramais vicinais sob responsabilidade SEINFRA</div>
+        </div>
+        <div class="hero-wave"><svg viewBox="0 0 1440 50" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <path d="M0,30 C480,60 960,0 1440,30 L1440,50 L0,50 Z" fill="#F5F7FB"/></svg></div>
+      </div>
+      <div class="content-wrap">
+        <div id="kpi-ramais" class="kpi-grid"></div>
+        <div class="charts-grid cols-2" id="charts-ramais"></div>
+        <div id="table-ramais"></div>
+      </div>
+    </section>
+
+    <!-- ╔══════════════════════════════╗ -->
+    <!-- ║   VIÁRIO URBANO              ║ -->
+    <!-- ╚══════════════════════════════╝ -->
+    <section class="page-section" id="page-viario">
+      <div class="page-hero" style="background:linear-gradient(135deg,#2d0066 0%,var(--roxo) 55%,#4a1060 100%)">
+        <div class="page-hero-accent" style="background:linear-gradient(to bottom,var(--amarelo),transparent)"></div>
+        <div class="page-hero-inner">
+          <div class="page-hero-eyebrow" style="color:#e9d5ff">🏙️ Infraestrutura Urbana</div>
+          <div class="page-hero-title">Viário Urbano</div>
+          <div class="page-hero-sub">Inventário de vias e logradouros urbanos geridos pela SEINFRA/AM</div>
+        </div>
+        <div class="hero-wave"><svg viewBox="0 0 1440 50" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <path d="M0,30 C480,60 960,0 1440,30 L1440,50 L0,50 Z" fill="#F5F7FB"/></svg></div>
+      </div>
+      <div class="content-wrap">
+        <div id="kpi-viario" class="kpi-grid"></div>
+        <div class="charts-grid cols-2" id="charts-viario"></div>
+        <div id="table-viario"></div>
+      </div>
+    </section>
+
+    <!-- ╔══════════════════════════════╗ -->
+    <!-- ║   AERÓDROMOS                 ║ -->
+    <!-- ╚══════════════════════════════╝ -->
+    <section class="page-section" id="page-aerodromos">
+      <div class="page-hero" style="background:linear-gradient(135deg,#012a4a 0%,#0a1f5c 45%,#1a0a33 100%)">
+        <div class="page-hero-accent" style="background:linear-gradient(to bottom,#c084fc,transparent)"></div>
+        <div class="page-hero-inner">
+          <div class="page-hero-eyebrow" style="color:var(--amarelo)">✈️ Infraestrutura Aeroportuária</div>
+          <div class="page-hero-title">Aeródromos do Amazonas</div>
+          <div class="page-hero-sub">Aeródromos públicos e estaduais sob concessão e gestão SEINFRA/AM</div>
+        </div>
+        <div class="hero-wave"><svg viewBox="0 0 1440 50" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <path d="M0,30 C480,60 960,0 1440,30 L1440,50 L0,50 Z" fill="#F5F7FB"/></svg></div>
+      </div>
+      <div class="content-wrap">
+        <div id="kpi-aerodromos" class="kpi-grid"></div>
+        <div class="charts-grid cols-3" id="charts-aerodromos"></div>
+        <div id="table-aerodromos"></div>
+      </div>
+    </section>
+
+    <!-- ╔══════════════════════════════╗ -->
+    <!-- ║   TERMINAIS FLUVIAIS         ║ -->
+    <!-- ╚══════════════════════════════╝ -->
+    <section class="page-section" id="page-terminais">
+      <div class="page-hero" style="background:linear-gradient(135deg,#01204e 0%,#1565C0 55%,#0288d1 100%)">
+        <div class="page-hero-accent" style="background:linear-gradient(to bottom,var(--amarelo),transparent)"></div>
+        <div class="page-hero-inner">
+          <div class="page-hero-eyebrow" style="color:#bae6fd">⚓ Infraestrutura Hidroviária</div>
+          <div class="page-hero-title">Terminais Fluviais</div>
+          <div class="page-hero-sub">Terminais flutuantes e infraestrutura hidroviária sob gestão SEINFRA/AM</div>
+        </div>
+        <div class="hero-wave"><svg viewBox="0 0 1440 50" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <path d="M0,30 C480,60 960,0 1440,30 L1440,50 L0,50 Z" fill="#F5F7FB"/></svg></div>
+      </div>
+      <div class="content-wrap">
+        <div id="kpi-terminais" class="kpi-grid"></div>
+        <div class="charts-grid cols-2" id="charts-terminais"></div>
+        <div id="table-terminais"></div>
+      </div>
+    </section>
+
+    <!-- ╔══════════════════════════════╗ -->
+    <!-- ║   SINISTROS / NOTÍCIAS       ║ -->
+    <!-- ╚══════════════════════════════╝ -->
+    <section class="page-section" id="page-sinistros">
+      <div class="page-hero" style="background:linear-gradient(135deg,#5c0000 0%,var(--vermelho) 55%,#c0392b 100%)">
+        <div class="page-hero-accent" style="background:linear-gradient(to bottom,var(--amarelo),transparent)"></div>
+        <div class="page-hero-inner">
+          <div class="page-hero-eyebrow" style="color:#fed7d7">🚨 Análise de Ocorrências</div>
+          <div class="page-hero-title">Sinistros & Notícias</div>
+          <div class="page-hero-sub">Monitoramento de sinistros e notícias sobre ocorrências nas vias do Amazonas</div>
+        </div>
+        <div class="hero-wave"><svg viewBox="0 0 1440 50" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <path d="M0,30 C480,60 960,0 1440,30 L1440,50 L0,50 Z" fill="#F5F7FB"/></svg></div>
+      </div>
+      <div class="content-wrap">
+        <div id="kpi-sinistros" class="kpi-grid"></div>
+        <div class="charts-grid cols-2" id="charts-sinistros"></div>
+        <div id="table-sinistros"></div>
+      </div>
+    </section>
+
+  </main><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   PORTAL SEINFRA/AM — SISTEMA DE GESTÃO INTEGRADO
+   Versão: 1.0 | Padrão de código: AKE (Axiom-Keyed Engineering)
+═══════════════════════════════════════════════════════════════════ */
+
+// ── CONFIG: Fontes de Dados ──────────────────────────────────────
+// ⚠️ As planilhas DEVEM estar compartilhadas como
+//    "Qualquer pessoa com o link pode visualizar"
+var CONFIG = {
+  rodovias: {
+    id: 'rodovias',
+    label: 'Rodovias',
+    icon: '🛣️',
+    color: '#007B3E',
+    colorRgb: '0,123,62',
+    desc: 'Rodovias estaduais e federais do Amazonas',
+    url: 'https://docs.google.com/spreadsheets/d/1bYf2anVF4un84-lusSOeSRaNLiod9fq0joUEnbgHxnM/export?format=csv&gid=0',
+    kpiCols: {
+      municipio: ['Município','Municipio','MUNICIPIO','MUNICÍPIO'],
+      situacao:  ['Situação','Situacao','SITUAÇÃO','Status'],
+      tipo:      ['Tipo','TIPO','Tipo de Via','TipoVia'],
+      extensao:  ['Extensão','Extensao','EXTENSÃO','Ext','Km']
+    },
+    chartCols: ['Situação','Situacao','SITUAÇÃO','Status','Tipo','TIPO']
+  },
+  ramais: {
+    id: 'ramais',
+    label: 'Ramais',
+    icon: '🌿',
+    color: '#E67E22',
+    colorRgb: '230,126,34',
+    desc: 'Ramais vicinais SEINFRA/AM',
+    url: 'https://docs.google.com/spreadsheets/d/1Cr5Qbj_My7oOcIYiIjZ6NgJiCsij4ZAQCSxdP49cffc/export?format=csv&gid=661002456',
+    kpiCols: {
+      municipio: ['Município','Municipio','MUNICIPIO'],
+      situacao:  ['Situação','Situacao','Status'],
+      calha:     ['Calha','CALHA'],
+      prioridade:['Prioridade','PRIORIDADE']
+    },
+    chartCols: ['Calha','Situação','Situacao','Prioridade','Classificação','Classifica']
+  },
+  viario: {
+    id: 'viario',
+    label: 'Viário Urbano',
+    icon: '🏙️',
+    color: '#7b2d8b',
+    colorRgb: '123,45,139',
+    desc: 'Vias e logradouros urbanos',
+    url: 'https://docs.google.com/spreadsheets/d/1xZK1yriI4FUVtTF0TrUPYP05DIxGBfeNzSuxmGR8A5M/export?format=csv&gid=149382059',
+    kpiCols: {
+      municipio: ['Município','Municipio','MUNICIPIO'],
+      situacao:  ['Situação','Situacao','Status'],
+      tipo:      ['Tipo','TIPO']
+    },
+    chartCols: ['Situação','Situacao','Tipo','TIPO','Município','Municipio']
+  },
+  aerodromos: {
+    id: 'aerodromos',
+    label: 'Aeródromos',
+    icon: '✈️',
+    color: '#002D72',
+    colorRgb: '0,45,114',
+    desc: 'Aeródromos públicos e estaduais',
+    url: 'https://docs.google.com/spreadsheets/d/1Inquxh0TfLRlsIiPQEXqWL2MK84neIC1-D32wAstI5o/export?format=csv&gid=757890890',
+    kpiCols: {
+      municipio: ['Município','Municipio','MUNICIPIO','Município/Sede'],
+      outorga:   ['Outorga','OUTORGA','Tipo de Outorga'],
+      pista:     ['Comprimento','Comprimento Pista','Pista(m)','Pista']
+    },
+    chartCols: ['Outorga','Tipo de Outorga','Situação','Situacao','Município','Municipio','Calha']
+  },
+  terminais: {
+    id: 'terminais',
+    label: 'Terminais Fluviais',
+    icon: '⚓',
+    color: '#1565C0',
+    colorRgb: '21,101,192',
+    desc: 'Terminais flutuantes e infraestrutura hidroviária',
+    url: 'https://docs.google.com/spreadsheets/d/1cup96GUKBv0xkESitNb9Dzbi_xqjYTzoPgz7-9qfCfI/export?format=csv&gid=1270405278',
+    kpiCols: {
+      municipio:  ['Município','Municipio','Localidade','MUNICIPIO'],
+      situacao:   ['Situação','Situacao','Status'],
+      tipo:       ['Tipo','TIPO','Modalidade']
+    },
+    chartCols: ['Situação','Situacao','Tipo','Modalidade','Localidade','Calha','Município']
+  },
+  sinistros: {
+    id: 'sinistros',
+    label: 'Sinistros / Notícias',
+    icon: '🚨',
+    color: '#D93025',
+    colorRgb: '217,48,37',
+    desc: 'Monitoramento de sinistros nas vias',
+    url: 'https://docs.google.com/spreadsheets/d/1y7h-FRn0jBfhlr9e7EwDBNES-0hCUhSeAf5s4tVEWxE/export?format=csv&gid=1521089113',
+    kpiCols: {
+      rodovia:  ['Rodovia','RODOVIA'],
+      municipio:['Município','Municipio','MUNICIPIO'],
+      tipo:     ['Tipo de Acidente/Sinistro','Tipo','TIPO','Tipo de Acidente']
+    },
+    chartCols: ['Rodovia','RODOVIA','Tipo de Acidente/Sinistro','Tipo de Via','Município']
+  }
+};
+
+// ── STATE ──────────────────────────────────────────────────────
+var STATE = {};
+Object.keys(CONFIG).forEach(function(k){ STATE[k] = { data:null, loaded:false }; });
+
+var currentPage = 'home';
+var chartInstances = {};
+
+// ── UTIL: CSV via PapaParse ────────────────────────────────────
+function loadCSV(url, cb) {
+  Papa.parse(url, {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: function(res){ cb(null, res.data); },
+    error: function(err){ cb(err, []); }
+  });
+}
+
+// ── UTIL: busca coluna por lista de candidatos ─────────────────
+function findCol(row, candidates) {
+  if(!row || !candidates) return null;
+  var keys = Object.keys(row);
+  for(var i=0; i<candidates.length; i++){
+    var c = candidates[i];
+    if(keys.indexOf(c) !== -1) return c;
+    // insensitive
+    for(var j=0; j<keys.length; j++){
+      if(keys[j].toLowerCase().trim() === c.toLowerCase().trim()) return keys[j];
+    }
+  }
+  return null;
+}
+
+// ── UTIL: conta por campo ─────────────────────────────────────
+function countBy(data, col) {
+  var m = {};
+  data.forEach(function(r){
+    var v = (r[col]||'').trim()||'N/I';
+    m[v] = (m[v]||0) + 1;
+  });
+  return m;
+}
+
+// ── UTIL: top N de um objeto map ──────────────────────────────
+function topN(map, n) {
+  return Object.keys(map).sort(function(a,b){ return map[b]-map[a]; }).slice(0,n);
+}
+
+// ── UTIL: destroy chart se existir ───────────────────────────
+function destroyChart(id) {
+  if(chartInstances[id]){ chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+// ── LOADER ────────────────────────────────────────────────────
+function showLoader(v){ document.getElementById('loaderOverlay').classList.toggle('show', v); }
+
+// ── SIDEBAR TOGGLE ────────────────────────────────────────────
+function toggleSidebar(){
+  var sb = document.getElementById('sidebar');
+  sb.classList.toggle('collapsed');
+}
+
+// ── ROUTING ───────────────────────────────────────────────────
+document.querySelectorAll('.nav-item').forEach(function(el){
+  el.addEventListener('click', function(){
+    var page = el.dataset.page;
+    navigate(page);
+  });
+});
+
+function navigate(page) {
+  document.querySelectorAll('.page-section').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  var sec = document.getElementById('page-' + page);
+  if(sec){ sec.classList.add('active'); }
+  var nav = document.querySelector('[data-page="' + page + '"]');
+  if(nav){ nav.classList.add('active'); }
+  currentPage = page;
+  // Scroll top
+  document.getElementById('mainContent').scrollTop = 0;
+  // Load data if needed
+  if(page !== 'home' && CONFIG[page] && !STATE[page].loaded){
+    loadSection(page);
+  }
+}
+
+// ── HOME: Gera category cards ─────────────────────────────────
+function buildHomeCards() {
+  var grid = document.getElementById('catGrid');
+  if(!grid) return;
+  var keys = Object.keys(CONFIG);
+  grid.innerHTML = keys.map(function(k){
+    var c = CONFIG[k];
+    return '<div class="cat-card" style="--card-color:'+c.color+';--card-rgb:'+c.colorRgb+'" onclick="navigate(\''+k+'\')">'
+      + '<div class="cat-card-head">'
+      + '<div class="cat-card-icon" style="background:rgba('+c.colorRgb+',.12);font-size:1.6rem">'+c.icon+'</div>'
+      + '<div class="cat-card-info">'
+      + '<div class="cat-card-name">'+c.label+'</div>'
+      + '<div class="cat-card-desc">'+c.desc+'</div>'
+      + '</div></div>'
+      + '<div class="cat-card-footer">'
+      + '<div><div class="cat-card-kpi" id="home-kpi-'+k+'">—</div>'
+      + '<div class="cat-card-kpi-lbl">registros</div></div>'
+      + '<div class="cat-card-cta">Explorar dados →</div>'
+      + '</div></div>';
+  }).join('');
+}
+
+// ── HOME: Tabela de fontes ────────────────────────────────────
+function buildSourcesTable() {
+  var tb = document.getElementById('sourcesTable');
+  if(!tb) return;
+  var allKeys = Object.keys(CONFIG);
+  // Adiciona planilhas gerais também
+  var extraSources = [
+    { label:'Planilha Geral (1)', url:'https://docs.google.com/spreadsheets/d/18cZ8C5AYCaS7tzp9pTy-2dHi0ZplwAAR/edit', color:'#4A5568' },
+    { label:'Planilha Geral (2)', url:'https://docs.google.com/spreadsheets/d/1LJTtvldaYyHuMnsF04gim2eZPhIqzy5CbEnOZ1zTCoM/edit', color:'#4A5568' },
+  ];
+  var rows = allKeys.map(function(k){
+    var c = CONFIG[k];
+    return '<tr><td><b>'+c.icon+' '+c.label+'</b></td>'
+      + '<td><a href="'+c.url.replace('/export?format=csv','').replace('&gid=','/edit?gid=')+'" target="_blank" style="color:var(--azul);font-size:.75rem">🔗 Abrir planilha</a></td>'
+      + '<td><span class="badge badge-green" id="src-status-'+k+'">Configurada</span></td>'
+      + '<td><button class="btn btn-primary btn-sm" onclick="navigate(\''+k+'\')">Carregar ↗</button></td></tr>';
+  });
+  extraSources.forEach(function(s){
+    rows.push('<tr><td><b>📊 '+s.label+'</b></td>'
+      + '<td><a href="'+s.url+'" target="_blank" style="color:var(--azul);font-size:.75rem">🔗 Abrir planilha</a></td>'
+      + '<td><span class="badge badge-blue">Geral</span></td>'
+      + '<td>—</td></tr>');
+  });
+  tb.innerHTML = rows.join('');
+}
+
+// ── RENDER KPIs genérico ──────────────────────────────────────
+function renderKPIs(key, data) {
+  var el = document.getElementById('kpi-' + key);
+  if(!el) return;
+  var cfg = CONFIG[key];
+  var kc = cfg.kpiCols || {};
+  var first = data[0] || {};
+
+  // KPI 1: Total
+  var kpis = [
+    { label:'Total de Registros', value:data.length, icon:'📋', color:cfg.color, colorH:cfg.color }
+  ];
+
+  // KPI 2: Municípios únicos
+  var munCol = findCol(first, kc.municipio || []);
+  if(munCol){
+    var muns = new Set(data.map(function(r){ return (r[munCol]||'').trim(); }).filter(Boolean));
+    kpis.push({ label:'Municípios', value:muns.size, icon:'📍', color:cfg.color });
+  }
+
+  // KPI 3: Coluna de situação
+  var sitCol = findCol(first, kc.situacao || []);
+  if(sitCol){
+    var sitMap = countBy(data, sitCol);
+    var sitKeys = Object.keys(sitMap);
+    if(sitKeys.length){ kpis.push({ label:'Situações distintas', value:sitKeys.length, icon:'📊', color:cfg.color }); }
+  }
+
+  // KPI extra específico
+  var extraKey = Object.keys(kc).find(function(k){ return k !== 'municipio' && k !== 'situacao'; });
+  if(extraKey){
+    var extraCol = findCol(first, kc[extraKey]);
+    if(extraCol){
+      var extraSet = new Set(data.map(function(r){ return (r[extraCol]||'').trim(); }).filter(Boolean));
+      kpis.push({ label: extraKey.charAt(0).toUpperCase()+extraKey.slice(1)+'s distintos', value:extraSet.size, icon:'🔖', color:cfg.color });
+    }
+  }
+
+  el.innerHTML = kpis.map(function(kpi){
+    return '<div class="kpi-card" style="--card-color:'+kpi.color+';--card-color-h:'+(kpi.colorH||kpi.color)+'">'
+      + '<div class="kpi-label">'+kpi.label+'</div>'
+      + '<div class="kpi-value">'+kpi.value.toLocaleString('pt-BR')+'</div>'
+      + '<div class="kpi-icon">'+kpi.icon+'</div>'
+      + '</div>';
+  }).join('');
+
+  // Atualiza home card
+  var homeEl = document.getElementById('home-kpi-'+key);
+  if(homeEl) homeEl.textContent = data.length.toLocaleString('pt-BR');
+
+  // Atualiza nav badge
+  var badge = document.getElementById('badge-'+key);
+  if(badge) badge.textContent = data.length > 999 ? Math.round(data.length/1000)+'k' : data.length;
+}
+
+// ── RENDER CHARTS genérico ────────────────────────────────────
+function renderCharts(key, data) {
+  var el = document.getElementById('charts-' + key);
+  if(!el) return;
+  var cfg = CONFIG[key];
+  var first = data[0] || {};
+  var chartCols = cfg.chartCols || [];
+
+  // Encontra até 2 colunas para gráficos
+  var usedCols = [];
+  for(var i=0; i<chartCols.length && usedCols.length < 2; i++){
+    var col = findCol(first, [chartCols[i]]);
+    if(col && usedCols.indexOf(col) === -1){
+      var unique = new Set(data.map(function(r){ return (r[col]||'').trim(); }).filter(Boolean));
+      if(unique.size >= 2 && unique.size <= 25){
+        usedCols.push(col);
+      }
+    }
+  }
+
+  if(!usedCols.length){ el.style.display = 'none'; return; }
+  el.style.display = '';
+
+  // Paleta
+  var palette = [
+    cfg.color,'#F5A623','#33A23D','#D93025','#7b2d8b','#E67E22',
+    '#1565C0','#0E8A7D','#8896A8','#c27d05','#2980B9','#C2185B'
+  ];
+
+  el.innerHTML = '';
+  usedCols.forEach(function(col, idx){
+    var cid = 'chart-'+key+'-'+idx;
+    el.innerHTML += '<div class="chart-card">'
+      + '<div class="chart-title">Por '+col+'</div>'
+      + '<div class="chart-sub">Distribuição dos registros</div>'
+      + '<div class="chart-wrap"><canvas id="'+cid+'"></canvas></div></div>';
+
+    var map = countBy(data, col);
+    var topKeys = topN(map, 8);
+    var vals = topKeys.map(function(k){ return map[k]; });
+
+    destroyChart(cid);
+    setTimeout(function(){
+      var canvas = document.getElementById(cid);
+      if(!canvas) return;
+      chartInstances[cid] = new Chart(canvas, {
+        type: vals.length <= 5 ? 'doughnut' : 'bar',
+        data: {
+          labels: topKeys,
+          datasets: [{
+            data: vals,
+            backgroundColor: palette.slice(0, topKeys.length),
+            borderWidth: 0,
+            borderRadius: 6,
+            barThickness: 22
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: vals.length <= 5,
+              position: 'bottom',
+              labels: { font:{family:'Outfit',size:10}, boxWidth:10, padding:10 }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(ctx){ return ' '+ctx.label+': '+ctx.raw.toLocaleString('pt-BR'); }
+              }
+            }
+          },
+          scales: vals.length > 5 ? {
+            x: { ticks:{ font:{family:'Outfit',size:10}, maxRotation:40 }, grid:{display:false} },
+            y: { ticks:{ font:{family:'Outfit',size:10} }, grid:{color:'rgba(0,0,0,.05)' } }
+          } : {}
+        }
+      });
+    }, 50);
+  });
+}
+
+// ── RENDER TABLE genérico ─────────────────────────────────────
+function renderTable(key, data) {
+  var el = document.getElementById('table-' + key);
+  if(!el || !data.length) return;
+  var cfg = CONFIG[key];
+
+  // Pega colunas (max 10 para não poluir)
+  var allCols = Object.keys(data[0]);
+  var cols = allCols.filter(function(c){ return c.trim() !== '' && c !== ''; }).slice(0, 12);
+
+  var state = {
+    all: data,
+    filtered: data.slice(),
+    page: 1,
+    perPage: 20,
+    query: ''
+  };
+
+  function doRender() {
+    var total = state.filtered.length;
+    var start = (state.page - 1) * state.perPage;
+    var end = Math.min(start + state.perPage, total);
+    var rows = state.filtered.slice(start, end);
+
+    // Thead
+    var thead = '<thead><tr>' + cols.map(function(c){
+      return '<th>'+c+'</th>';
+    }).join('') + '</tr></thead>';
+
+    // Tbody
+    var tbody;
+    if(!rows.length){
+      tbody = '<tbody><tr><td colspan="'+cols.length+'">'
+        + '<div class="empty-state">'
+        + '<div class="empty-icon">🔍</div>'
+        + '<div class="empty-title">Nenhum registro encontrado</div>'
+        + '<div class="empty-sub">Tente outros termos de busca</div>'
+        + '</div></td></tr></tbody>';
+    } else {
+      tbody = '<tbody>' + rows.map(function(row){
+        return '<tr>' + cols.map(function(c){
+          var v = row[c] || '—';
+          // Auto-badge por palavras-chave comuns
+          if(typeof v === 'string' && v.length < 30 && v !== '—'){
+            var vl = v.toLowerCase();
+            if(vl.includes('ativo') || vl.includes('operacional') || vl.includes('bom') || vl.includes('conclu')) return '<td><span class="badge badge-green">'+v+'</span></td>';
+            if(vl.includes('inativo') || vl.includes('interdit') || vl.includes('ruim') || vl.includes('críti')) return '<td><span class="badge badge-red">'+v+'</span></td>';
+            if(vl.includes('obra') || vl.includes('execu') || vl.includes('em and')) return '<td><span class="badge badge-yellow">'+v+'</span></td>';
+            if(vl.includes('federal')) return '<td><span class="badge badge-blue">'+v+'</span></td>';
+            if(vl.includes('estadual')) return '<td><span class="badge badge-purple">'+v+'</span></td>';
+          }
+          var vs = String(v);
+          if(vs.length > 60) vs = vs.slice(0,60)+'…';
+          return '<td>'+vs+'</td>';
+        }).join('') + '</tr>';
+      }).join('') + '</tbody>';
+    }
+
+    // Paginação
+    var totalPags = Math.ceil(total / state.perPage);
+    var pagBtns = '<button class="page-btn" onclick="pgNav(\''+key+'\','+Math.max(1,state.page-1)+')" '+(state.page<=1?'disabled':'')+'style="">← Ant.</button>';
+    var de = Math.max(1,state.page-2), ate = Math.min(totalPags,state.page+2);
+    for(var p=de; p<=ate; p++){
+      pagBtns += '<button class="page-btn'+(p===state.page?' active':'')+'" onclick="pgNav(\''+key+'\','+p+')">'+p+'</button>';
+    }
+    pagBtns += '<button class="page-btn" onclick="pgNav(\''+key+'\','+Math.min(totalPags,state.page+1)+')" '+(state.page>=totalPags?'disabled':'')+'>'+'Próx. →</button>';
+
+    el.innerHTML = '<div class="table-card">'
+      + '<div class="table-header">'
+      + '<span class="table-title">'+cfg.icon+' '+cfg.label+' — Tabela de Registros</span>'
+      + '<span class="table-count"><span>'+(start+1)+'–'+end+'</span> de '+total.toLocaleString('pt-BR')+' registros</span>'
+      + '</div>'
+      + '<div class="controls-row">'
+      + '<div class="search-wrap"><span class="search-icon">🔍</span>'
+      + '<input type="text" placeholder="Buscar em todos os campos..." id="search-'+key+'" value="'+state.query+'"/></div>'
+      + '<button class="btn btn-sec btn-sm" onclick="exportCSV(\''+key+'\')">⬇️ Exportar CSV</button>'
+      + '<button class="btn btn-primary btn-sm" onclick="filterTable(\''+key+'\')">Filtrar</button>'
+      + '</div>'
+      + '<div class="table-scroll"><table>'+thead+tbody+'</table></div>'
+      + '<div class="pagination">'
+      + '<span class="page-info">Página '+state.page+' de '+totalPags+'</span>'
+      + '<div class="page-btns">'+pagBtns+'</div>'
+      + '</div></div>';
+
+    // Eventos de busca
+    var inp = document.getElementById('search-'+key);
+    if(inp){
+      inp.addEventListener('keydown', function(e){ if(e.key==='Enter') filterTable(key); });
+      inp.addEventListener('input', function(){ state.query = inp.value; });
+    }
+  }
+
+  // Expõe para o window para eventos inline
+  window['_tState_'+key] = state;
+
+  window['pgNav'] = window['pgNav'] || {};
+  window.pgNav = function(k, p) {
+    var s = window['_tState_'+k];
+    if(!s) return;
+    s.page = p;
+    renderTable(k, CONFIG[k]._data);
+  };
+
+  window.filterTable = function(k) {
+    var s = window['_tState_'+k];
+    var inp = document.getElementById('search-'+k);
+    if(!s || !inp) return;
+    var q = inp.value.toLowerCase();
+    s.query = q;
+    s.page = 1;
+    if(q){
+      s.filtered = s.all.filter(function(r){
+        return Object.values(r).some(function(v){ return String(v).toLowerCase().includes(q); });
+      });
+    } else {
+      s.filtered = s.all.slice();
+    }
+    renderTable(k, CONFIG[k]._data);
+  };
+
+  CONFIG[key]._data = data;
+  doRender();
+}
+
+// ── EXPORTAR CSV ──────────────────────────────────────────────
+window.exportCSV = function(key) {
+  var s = window['_tState_'+key];
+  if(!s || !s.filtered.length) return;
+  var cols = Object.keys(s.filtered[0]);
+  var csv = cols.join(',') + '\n';
+  s.filtered.forEach(function(r){
+    csv += cols.map(function(c){ return '"'+(r[c]||'').toString().replace(/"/g,'""')+'"'; }).join(',') + '\n';
+  });
+  var blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'seinfra_am_'+key+'_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+};
+
+// ── LOAD SECTION ─────────────────────────────────────────────
+function loadSection(key) {
+  if(STATE[key].loaded) return;
+  showLoader(true);
+
+  var cfg = CONFIG[key];
+  loadCSV(cfg.url, function(err, data) {
+    showLoader(false);
+    if(err || !data.length){
+      var el = document.getElementById('table-'+key);
+      if(el) el.innerHTML = '<div class="alert error show">⚠️ Erro ao carregar dados. Verifique se a planilha está compartilhada publicamente. ('+key+')</div>';
+      return;
+    }
+    STATE[key] = { data: data, loaded: true };
+    renderKPIs(key, data);
+    renderCharts(key, data);
+    renderTable(key, data);
+    updateHomeTotal();
+  });
+}
+
+// ── HOME TOTAL ────────────────────────────────────────────────
+function updateHomeTotal() {
+  var total = Object.keys(STATE).reduce(function(acc, k){
+    return acc + (STATE[k].loaded ? STATE[k].data.length : 0);
+  }, 0);
+  var el = document.getElementById('homeTotal');
+  if(el && total > 0) el.textContent = total.toLocaleString('pt-BR');
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+(function init() {
+  buildHomeCards();
+  buildSourcesTable();
+})();
+</script>
+</body>
+</html>
